@@ -1,0 +1,17 @@
+{
+  "name": "virtual-exhibition",
+  "version": "1.0.0",
+  "description": "Interactive virtual exhibition exploring the concept of home through 5 stages of life",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

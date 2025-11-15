@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Exhibition - Journey of Home</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading screen -->
+    <div id="loading-screen">
+      <div class="loading-content">
+        <h1>Journey of Home</h1>
+        <div class="loading-bar">
+          <div class="loading-progress"></div>
+        </div>
+        <p class="loading-text">Loading experience...</p>
+      </div>
+    </div>
+
+    <!-- Main canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+      <!-- Room title -->
+      <div id="room-title" class="hidden">
+        <h2 id="room-name"></h2>
+        <p id="room-subtitle"></p>
+      </div>
+
+      <!-- Interaction prompt -->
+      <div id="interaction-prompt" class="hidden">
+        <p id="prompt-text">Press E to interact</p>
+      </div>
+
+      <!-- Modal for text input and interactions -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-content">
+          <span class="close-btn">&times;</span>
+          <h3 id="modal-title"></h3>
+          <div id="modal-body"></div>
+        </div>
+      </div>
+
+      <!-- Navigation hint -->
+      <div id="controls-hint">
+        <p>WASD to move | Mouse to look | E to interact</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
