@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 import { FirstPersonControls } from './FirstPersonControls.js';
 import { InteractionManager } from './InteractionManager.js';
 import { AudioManager } from './AudioManager.js';
@@ -12,89 +12,124 @@ import { Room5 } from '../rooms/Room5.js';
 export class SceneManager {
   constructor(canvas) {
     this.canvas = canvas;
-    this.clock = new THREE.Clock();
     this.currentRoom = null;
     this.rooms = new Map();
     this.performanceMonitor = new PerformanceMonitor();
 
-    this.setupRenderer();
+    this.setupEngine();
     this.setupScene();
     this.setupCamera();
+    this.setupPipeline();
     this.setupControls();
     this.setupManagers();
     this.setupLights();
   }
 
-  setupRenderer() {
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.canvas,
+  setupEngine() {
+    // Create Babylon.js engine with optimization settings
+    this.engine = new BABYLON.Engine(this.canvas, true, {
+      powerPreference: 'high-performance',
       antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance' // OPTIMIZED: Request high-performance GPU
+      preserveDrawingBuffer: false,
+      stencil: false
     });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // OPTIMIZED: Use basic shadow map for better performance
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.BasicShadowMap; // Changed from PCFSoftShadowMap
+    // Set pixel ratio (capped at 2 for performance)
+    this.engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 2));
 
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    // Enable basic shadows
+    this.engine.getCaps().maxTextureSize = 1024;
   }
 
   setupScene() {
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 1, 50);
+    this.scene = new BABYLON.Scene(this.engine);
+
+    // Background color - LIGHTENED for better visibility
+    this.scene.clearColor = new BABYLON.Color4(0.2, 0.2, 0.3, 1); // Lighter navy
+
+    // Fog - LIGHTENED
+    this.scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+    this.scene.fogColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+    this.scene.fogStart = 10;
+    this.scene.fogEnd = 50;
   }
 
   setupCamera() {
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
+    this.camera = new BABYLON.UniversalCamera(
+      'camera',
+      new BABYLON.Vector3(0, 1.6, 5),
+      this.scene
     );
-    this.camera.position.set(0, 1.6, 5); // Eye level height
+
+    // Camera settings
+    this.camera.fov = 75 * Math.PI / 180; // Convert degrees to radians
+    this.camera.minZ = 0.1;
+    this.camera.maxZ = 1000;
+
+    // Disable default controls (we'll use custom FirstPersonControls)
+    this.camera.inputs.clear();
+  }
+
+  setupPipeline() {
+    // Image processing (tone mapping equivalent)
+    const pipeline = new BABYLON.DefaultRenderingPipeline(
+      'default',
+      true,
+      this.scene,
+      [this.camera]
+    );
+    pipeline.imageProcessingEnabled = true;
+    pipeline.imageProcessing.toneMappingEnabled = true;
+    pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    pipeline.imageProcessing.exposure = 1.2;
+
+    this.pipeline = pipeline;
   }
 
   setupControls() {
-    this.controls = new FirstPersonControls(this.camera, this.canvas);
+    this.controls = new FirstPersonControls(this.camera, this.canvas, this.scene);
   }
 
   setupManagers() {
     this.interactionManager = new InteractionManager(this.camera, this.scene);
-    this.audioManager = new AudioManager();
+    this.audioManager = new AudioManager(this.scene);
   }
 
   setupLights() {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    this.scene.add(ambientLight);
+    // Hemispheric light (replaces ambient light) - INCREASED for better visibility
+    const hemiLight = new BABYLON.HemisphericLight(
+      'hemiLight',
+      new BABYLON.Vector3(0, 1, 0),
+      this.scene
+    );
+    hemiLight.intensity = 0.6; // Increased from 0.3
 
-    // OPTIMIZED: Reduced shadow map size and simplified shadow camera
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    dirLight.position.set(5, 10, 5);
-    dirLight.castShadow = true;
-    dirLight.shadow.camera.near = 0.1;
-    dirLight.shadow.camera.far = 50;
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
-    dirLight.shadow.camera.top = 20;
-    dirLight.shadow.camera.bottom = -20;
-    dirLight.shadow.mapSize.width = 1024; // Reduced from 2048
-    dirLight.shadow.mapSize.height = 1024; // Reduced from 2048
-    this.scene.add(dirLight);
+    // Directional light with shadows - INCREASED for better visibility
+    const dirLight = new BABYLON.DirectionalLight(
+      'dirLight',
+      new BABYLON.Vector3(-5, -10, -5),
+      this.scene
+    );
+    dirLight.position = new BABYLON.Vector3(5, 10, 5);
+    dirLight.intensity = 0.8; // Increased from 0.5
+
+    // Shadow generator (OPTIMIZED: 1024x1024 shadow map)
+    this.shadowGenerator = new BABYLON.ShadowGenerator(1024, dirLight);
+    this.shadowGenerator.useBlurExponentialShadowMap = false; // Use basic shadows for performance
+    this.shadowGenerator.useContactHardeningShadow = false;
+    this.shadowGenerator.filteringQuality = BABYLON.ShadowGenerator.QUALITY_LOW;
+
+    // Store for room access
+    this.dirLight = dirLight;
   }
 
   async loadRooms() {
     // Create all rooms
-    this.rooms.set(1, new Room1(this.scene, this.interactionManager, this.audioManager));
-    this.rooms.set(2, new Room2(this.scene, this.interactionManager, this.audioManager));
-    this.rooms.set(3, new Room3(this.scene, this.interactionManager, this.audioManager));
-    this.rooms.set(4, new Room4(this.scene, this.interactionManager, this.audioManager));
-    this.rooms.set(5, new Room5(this.scene, this.interactionManager, this.audioManager));
+    this.rooms.set(1, new Room1(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
+    this.rooms.set(2, new Room2(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
+    this.rooms.set(3, new Room3(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
+    this.rooms.set(4, new Room4(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
+    this.rooms.set(5, new Room5(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
 
     // Initialize all rooms
     for (const [id, room] of this.rooms) {
@@ -134,7 +169,7 @@ export class SceneManager {
 
     const pos = positions[roomNumber];
     if (pos) {
-      this.camera.position.set(pos.x, pos.y, pos.z);
+      this.camera.position = new BABYLON.Vector3(pos.x, pos.y, pos.z);
       this.controls.reset();
     }
   }
@@ -144,32 +179,34 @@ export class SceneManager {
   }
 
   animate() {
-    requestAnimationFrame(() => this.animate());
+    // Babylon.js render loop
+    this.engine.runRenderLoop(() => {
+      const deltaTime = this.engine.getDeltaTime() / 1000; // Convert to seconds
 
-    const deltaTime = this.clock.getDelta();
+      // Update controls
+      this.controls.update(deltaTime);
 
-    // Update controls
-    this.controls.update(deltaTime);
+      // Update current room
+      if (this.currentRoom) {
+        this.currentRoom.update(deltaTime);
+      }
 
-    // Update current room
-    if (this.currentRoom) {
-      this.currentRoom.update(deltaTime);
-    }
+      // Update interaction manager
+      this.interactionManager.update(this.camera);
 
-    // Update interaction manager
-    this.interactionManager.update(this.camera);
+      // Update performance monitor
+      this.performanceMonitor.update();
 
-    // Update performance monitor
-    this.performanceMonitor.update();
+      // Render
+      this.scene.render();
+    });
 
-    // Render
-    this.renderer.render(this.scene, this.camera);
+    // Handle window resize
+    window.addEventListener('resize', () => this.onWindowResize());
   }
 
   onWindowResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.engine.resize();
   }
 
   getCamera() {
@@ -180,11 +217,19 @@ export class SceneManager {
     return this.scene;
   }
 
+  getEngine() {
+    return this.engine;
+  }
+
   getInteractionManager() {
     return this.interactionManager;
   }
 
   getAudioManager() {
     return this.audioManager;
+  }
+
+  getShadowGenerator() {
+    return this.shadowGenerator;
   }
 }

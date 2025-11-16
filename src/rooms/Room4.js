@@ -1,12 +1,13 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room4 extends BaseRoom {
-  constructor(scene, interactionManager, audioManager) {
-    super(scene, interactionManager, audioManager);
-    this.roomOffset = new THREE.Vector3(90, 0, 0);
+  constructor(scene, interactionManager, audioManager, shadowGenerator) {
+    super(scene, interactionManager, audioManager, shadowGenerator);
+    this.roomOffset = new BABYLON.Vector3(90, 0, 0);
     this.stars = [];
     this.userStars = [];
+    this.floatingStars = []; // Stars that orbit around the player
     this.zoomState = 'normal'; // 'normal', 'zooming_out', 'cosmic'
     this.zoomProgress = 0;
   }
@@ -24,27 +25,32 @@ export class Room4 extends BaseRoom {
   createRoomStructure() {
     // ENCLOSED: Intimate cosmic space with lower ceiling
     const walls = this.createWalls(16, 3.5, 14, 0x000000);
-    walls.position.copy(this.roomOffset);
+    walls.position = this.roomOffset.clone();
 
     // Make walls nearly invisible (space feeling)
-    walls.children.forEach(child => {
+    walls.getDescendants().forEach(child => {
       if (child.material) {
-        child.material.color.setHex(0x000000);
-        child.material.emissive = new THREE.Color(0x000000);
+        child.material.diffuse = new BABYLON.Color3(0, 0, 0);
+        child.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
       }
     });
 
-    this.group.add(walls);
+    walls.parent = this.group;
 
     // Create floor with subtle grid
     this.createSpaceGrid();
   }
 
   createSpaceGrid() {
-    const gridHelper = new THREE.GridHelper(14, 28, 0x222244, 0x111122);
-    gridHelper.position.copy(this.roomOffset);
-    gridHelper.position.y = 0.01;
-    this.group.add(gridHelper);
+    // Create a simple grid plane instead of THREE.GridHelper
+    const gridMaterial = new BABYLON.StandardMaterial('gridMaterial', this.scene);
+    gridMaterial.diffuse = new BABYLON.Color3(0.133, 0.133, 0.267); // 0x222244
+    gridMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+
+    const gridPlane = BABYLON.MeshBuilder.CreateGround('grid', { width: 14, height: 14, subdivisions: 28 }, this.scene);
+    gridPlane.position = this.roomOffset.add(new BABYLON.Vector3(0, 0.01, 0));
+    gridPlane.material = gridMaterial;
+    gridPlane.parent = this.group;
 
     // Glow lines orbiting
     this.createOrbitLines();
@@ -55,28 +61,29 @@ export class Room4 extends BaseRoom {
 
     for (let i = 0; i < 3; i++) {
       const radius = 2 + i * 1.5;
-      const curve = new THREE.EllipseCurve(
-        0, 0,
-        radius, radius,
-        0, 2 * Math.PI,
-        false,
-        0
-      );
+      const points = [];
 
-      const points = curve.getPoints(50);
-      const geometry = new THREE.BufferGeometry().setFromPoints(
-        points.map(p => new THREE.Vector3(p.x, 0.05, p.y))
-      );
+      // Generate circle points
+      for (let j = 0; j <= 50; j++) {
+        const angle = (j / 50) * Math.PI * 2;
+        points.push(new BABYLON.Vector3(
+          Math.cos(angle) * radius,
+          0.05,
+          Math.sin(angle) * radius
+        ));
+      }
 
-      const material = new THREE.LineBasicMaterial({
-        color: new THREE.Color().setHSL(i * 0.2, 1, 0.5),
-        transparent: true,
-        opacity: 0.3
-      });
+      // Create tube mesh instead of line
+      const hslColor = this.hslToRgb(i * 0.2, 1, 0.5);
+      const material = new BABYLON.StandardMaterial(`orbitMat${i}`, this.scene);
+      material.diffuse = new BABYLON.Color3(hslColor.r, hslColor.g, hslColor.b);
+      material.emissiveColor = new BABYLON.Color3(hslColor.r, hslColor.g, hslColor.b);
+      material.alpha = 0.3;
 
-      const line = new THREE.Line(geometry, material);
-      line.position.set(0, 0.1, 0).add(this.roomOffset);
-      this.group.add(line);
+      const line = BABYLON.MeshBuilder.CreateTube('orbit', { path: points, radius: 0.05 }, this.scene);
+      line.position = this.roomOffset.add(new BABYLON.Vector3(0, 0.1, 0));
+      line.material = material;
+      line.parent = this.group;
 
       this.orbitLines.push({
         line: line,
@@ -86,34 +93,57 @@ export class Room4 extends BaseRoom {
     }
   }
 
+  hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return { r, g, b };
+  }
+
   createCentralStar() {
     // The "problem star" - starts large, can zoom out
-    const starGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-    const starMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffff00,
-      emissive: 0xffff00,
-      emissiveIntensity: 1,
-      roughness: 0.3
-    });
+    const starMaterial = new BABYLON.StandardMaterial('centralStarMat', this.scene);
+    starMaterial.diffuse = new BABYLON.Color3(1, 1, 0); // 0xffff00
+    starMaterial.emissiveColor = new BABYLON.Color3(1, 1, 0);
+    starMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-    this.centralStar = new THREE.Mesh(starGeometry, starMaterial);
-    this.centralStar.position.set(0, 2, 0).add(this.roomOffset);
+    this.centralStar = BABYLON.MeshBuilder.CreateSphere('centralStar', { diameter: 1, segments: 32 }, this.scene);
+    this.centralStar.material = starMaterial;
+    this.centralStar.position = new BABYLON.Vector3(0, 2, 0).add(this.roomOffset);
 
-    // Add glow
-    const glowGeometry = new THREE.SphereGeometry(0.7, 32, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0.3
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    this.centralStar.add(glow);
+    // Add glow sphere
+    const glowMaterial = new BABYLON.StandardMaterial('glowMat', this.scene);
+    glowMaterial.diffuse = new BABYLON.Color3(1, 1, 0);
+    glowMaterial.emissiveColor = new BABYLON.Color3(1, 1, 0);
+    glowMaterial.alpha = 0.3;
+
+    const glow = BABYLON.MeshBuilder.CreateSphere('glow', { diameter: 1.4, segments: 32 }, this.scene);
+    glow.material = glowMaterial;
+    glow.parent = this.centralStar;
 
     // Add point light
-    const light = new THREE.PointLight(0xffff00, 2, 10);
-    this.centralStar.add(light);
+    const light = new BABYLON.PointLight('centralStarLight', this.centralStar.position, this.scene);
+    light.range = 10;
+    light.intensity = 2;
+    light.diffuse = new BABYLON.Color3(1, 1, 0);
+    light.parent = this.centralStar;
 
-    this.group.add(this.centralStar);
+    this.centralStar.parent = this.group;
 
     this.centralStarInitialPos = this.centralStar.position.clone();
   }
@@ -121,10 +151,8 @@ export class Room4 extends BaseRoom {
   createStarField() {
     // OPTIMIZED: Reduced from 1000 to 500 stars
     const starCount = 500;
-    const starGeometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
-    const sizes = []; // Add varying sizes
 
     for (let i = 0; i < starCount; i++) {
       // Random position in sphere
@@ -136,38 +164,50 @@ export class Room4 extends BaseRoom {
       const y = radius * Math.sin(phi) * Math.sin(theta);
       const z = radius * Math.cos(phi);
 
-      positions.push(x, y, z);
+      positions.push(new BABYLON.Vector3(x, y, z));
 
       // Random color (white to blue)
-      const color = new THREE.Color();
-      color.setHSL(0.6 + Math.random() * 0.1, 0.8, 0.8 + Math.random() * 0.2);
-      colors.push(color.r, color.g, color.b);
-
-      // Varying sizes for depth perception
-      sizes.push(0.03 + Math.random() * 0.04);
+      const hslColor = this.hslToRgb(0.6 + Math.random() * 0.1, 0.8, 0.8 + Math.random() * 0.2);
+      colors.push(new BABYLON.Color3(hslColor.r, hslColor.g, hslColor.b));
     }
 
-    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    starGeometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+    // Use SolidParticleSystem for star field
+    const sps = new BABYLON.SolidParticleSystem('starField', this.scene);
 
-    const starMaterial = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true // Better depth perception
-    });
+    // Create small sphere meshes for particles
+    const star = BABYLON.MeshBuilder.CreateSphere('star', { diameter: 0.05, segments: 4 }, this.scene);
 
-    this.starField = new THREE.Points(starGeometry, starMaterial);
-    this.starField.position.copy(this.roomOffset);
-    this.group.add(this.starField);
+    // Add all particles
+    sps.addShape(star, starCount);
+    star.dispose();
+
+    // Build mesh first
+    const mesh = sps.buildMesh();
+
+    // Initialize particles using the callback
+    sps.initParticles = function() {
+      for (let i = 0; i < sps.nbParticles; i++) {
+        const particle = sps.particles[i];
+        particle.position = positions[i];
+        particle.color = colors[i];
+      }
+    };
+    sps.initParticles();
+
+    // Set material properties
+    mesh.position = this.roomOffset;
+    const material = new BABYLON.StandardMaterial('starFieldMat', this.scene);
+    material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    material.alpha = 0.8;
+    mesh.material = material;
+
+    this.starField = sps.mesh;
+    this.starField.parent = this.group;
   }
 
   createGalaxy() {
     // OPTIMIZED: Reduced from 3000 to 1500 particles
     const galaxyCount = 1500;
-    const galaxyGeometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
 
@@ -180,28 +220,47 @@ export class Room4 extends BaseRoom {
       const z = Math.sin(angle) * radius;
       const y = (Math.random() - 0.5) * 0.5;
 
-      positions.push(x, y, z);
+      positions.push(new BABYLON.Vector3(x, y, z));
 
-      const color = new THREE.Color();
-      color.setHSL(0.6, 1, 0.5 + Math.random() * 0.3);
-      colors.push(color.r, color.g, color.b);
+      const hslColor = this.hslToRgb(0.6, 1, 0.5 + Math.random() * 0.3);
+      colors.push(new BABYLON.Color3(hslColor.r, hslColor.g, hslColor.b));
     }
 
-    galaxyGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    galaxyGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    // Use SolidParticleSystem for galaxy particles
+    const sps = new BABYLON.SolidParticleSystem('galaxy', this.scene);
 
-    const galaxyMaterial = new THREE.PointsMaterial({
-      size: 0.04, // Slightly larger to compensate for fewer particles
-      vertexColors: true,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending // Better glow effect
-    });
+    // Create small sphere meshes for particles
+    const particleMesh = BABYLON.MeshBuilder.CreateSphere('galaxyParticle', { diameter: 0.04, segments: 4 }, this.scene);
 
-    this.galaxy = new THREE.Points(galaxyGeometry, galaxyMaterial);
-    this.galaxy.position.set(0, 2, 0).add(this.roomOffset);
-    this.galaxy.scale.set(0.1, 0.1, 0.1);
-    this.group.add(this.galaxy);
+    // Add all particles
+    sps.addShape(particleMesh, galaxyCount);
+    particleMesh.dispose();
+
+    // Build mesh first
+    const mesh = sps.buildMesh();
+
+    // Initialize particles using the callback
+    sps.initParticles = function() {
+      for (let i = 0; i < sps.nbParticles; i++) {
+        const particle = sps.particles[i];
+        particle.position = positions[i];
+        particle.color = colors[i];
+      }
+    };
+    sps.initParticles();
+
+    // Set material properties
+    const particleMat = new BABYLON.StandardMaterial('galaxyMat', this.scene);
+    particleMat.emissiveColor = new BABYLON.Color3(0.4, 0.2, 1); // Blue/purple glow
+    particleMat.alphaMode = BABYLON.Engine.ALPHA_ADD; // Additive blending
+    particleMat.alpha = 0;
+    mesh.material = particleMat;
+
+    this.galaxy = mesh;
+    this.galaxy.position = new BABYLON.Vector3(0, 2, 0).add(this.roomOffset);
+    this.galaxy.scaling = new BABYLON.Vector3(0.1, 0.1, 0.1);
+
+    this.galaxy.parent = this.group;
   }
 
   createInteractionPedestal() {
@@ -209,22 +268,21 @@ export class Room4 extends BaseRoom {
     const pedestalBase = this.createCylinder(
       0.4, 0.35, 1,
       0x1a1a2e,
-      new THREE.Vector3(0, 0.5, 3.5).add(this.roomOffset)
+      new BABYLON.Vector3(0, 0.5, 3.5).add(this.roomOffset)
     );
-    this.group.add(pedestalBase);
+    pedestalBase.parent = this.group;
 
     // Tablet screen
-    const tabletGeometry = new THREE.BoxGeometry(0.6, 0.4, 0.05);
-    const tabletMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2c2c3e,
-      emissive: 0x4a4a6a,
-      emissiveIntensity: 0.5
-    });
+    const tabletMaterial = new BABYLON.StandardMaterial('tabletMat', this.scene);
+    tabletMaterial.diffuse = new BABYLON.Color3(0.173, 0.173, 0.243); // 0x2c2c3e
+    tabletMaterial.emissiveColor = new BABYLON.Color3(0.29, 0.29, 0.42); // 0x4a4a6a
+    tabletMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
 
-    this.tablet = new THREE.Mesh(tabletGeometry, tabletMaterial);
-    this.tablet.position.set(0, 1.2, 3.5).add(this.roomOffset);
+    this.tablet = BABYLON.MeshBuilder.CreateBox('tablet', { width: 0.6, height: 0.4, depth: 0.05 }, this.scene);
+    this.tablet.material = tabletMaterial;
+    this.tablet.position = new BABYLON.Vector3(0, 1.2, 3.5).add(this.roomOffset);
     this.tablet.rotation.x = -Math.PI / 6;
-    this.group.add(this.tablet);
+    this.tablet.parent = this.group;
 
     // Make tablet interactive
     this.addInteractiveObject(this.tablet, () => {
@@ -232,9 +290,11 @@ export class Room4 extends BaseRoom {
     }, 'Share your perspective');
 
     // Add glow to tablet
-    const glowLight = new THREE.PointLight(0x6a7fff, 0.5, 3);
-    glowLight.position.set(0, 1.2, 3.7).add(this.roomOffset);
-    this.group.add(glowLight);
+    const glowLight = new BABYLON.PointLight('tabletLight', new BABYLON.Vector3(0, 1.2, 3.7).add(this.roomOffset), this.scene);
+    glowLight.range = 3;
+    glowLight.intensity = 0.5;
+    glowLight.diffuse = new BABYLON.Color3(0.42, 0.5, 1); // 0x6a7fff
+    glowLight.parent = this.group;
   }
 
   onTabletInteraction() {
@@ -270,6 +330,9 @@ export class Room4 extends BaseRoom {
   }
 
   submitPerspective(data) {
+    // Add floating stars around user
+    this.createFloatingStars();
+
     // Trigger zoom out animation
     this.startZoomOut(data.struggle || data.feeling);
   }
@@ -293,11 +356,12 @@ export class Room4 extends BaseRoom {
     if (this.zoomProgress <= 1) {
       // Scale down central star
       const scale = 1 - this.zoomProgress * 0.95;
-      this.centralStar.scale.setScalar(scale);
+      this.centralStar.scaling = new BABYLON.Vector3(scale, scale, scale);
 
       // Move camera metaphorically by scaling the galaxy
-      this.galaxy.scale.setScalar(this.zoomProgress * 20);
-      this.galaxy.material.opacity = this.zoomProgress * 0.8;
+      const galaxyScale = this.zoomProgress * 20;
+      this.galaxy.scaling = new BABYLON.Vector3(galaxyScale, galaxyScale, galaxyScale);
+      this.galaxy.material.alpha = this.zoomProgress * 0.8;
 
       // Rotate galaxy
       this.galaxy.rotation.y += deltaTime * 0.3;
@@ -328,34 +392,87 @@ export class Room4 extends BaseRoom {
 
   addUserStar(text) {
     // Add user's problem as a tiny star in the galaxy
-    const starGeometry = new THREE.SphereGeometry(0.03, 16, 16);
-    const starMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff6b6b,
-      emissive: 0xff6b6b,
-      emissiveIntensity: 0.8
-    });
+    const starMaterial = new BABYLON.StandardMaterial('userStarMat', this.scene);
+    starMaterial.diffuse = new BABYLON.Color3(1, 0.42, 0.42); // 0xff6b6b
+    starMaterial.emissiveColor = new BABYLON.Color3(1, 0.42, 0.42);
+    starMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
 
-    const star = new THREE.Mesh(starGeometry, starMaterial);
+    const star = BABYLON.MeshBuilder.CreateSphere('userStar', { diameter: 0.06, segments: 16 }, this.scene);
+    star.material = starMaterial;
 
     // Random position in galaxy
     const angle = Math.random() * Math.PI * 2;
     const radius = Math.random() * 3 + 1;
-    star.position.set(
+    star.position = new BABYLON.Vector3(
       Math.cos(angle) * radius,
       (Math.random() - 0.5) * 0.3,
       Math.sin(angle) * radius
     );
 
-    this.galaxy.add(star);
+    star.parent = this.galaxy;
 
-    const light = new THREE.PointLight(0xff6b6b, 0.3, 1);
-    star.add(light);
+    const light = new BABYLON.PointLight('userStarLight', star.position, this.scene);
+    light.range = 1;
+    light.intensity = 0.3;
+    light.diffuse = new BABYLON.Color3(1, 0.42, 0.42);
+    light.parent = star;
 
     this.userStars.push({
       mesh: star,
       text: text,
       pulse: 0
     });
+  }
+
+  createFloatingStars() {
+    // Create 8 floating stars that orbit around the player
+    const numStars = 8;
+    const orbitRadius = 2; // Distance from player
+
+    for (let i = 0; i < numStars; i++) {
+      const angle = (i / numStars) * Math.PI * 2;
+
+      // Create glowing star
+      const starMaterial = new BABYLON.StandardMaterial(`floatingStar${i}Mat`, this.scene);
+      starMaterial.diffuse = new BABYLON.Color3(1, 0.84, 0.42); // Golden color
+      starMaterial.emissiveColor = new BABYLON.Color3(1, 0.84, 0.42);
+      starMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+
+      const star = BABYLON.MeshBuilder.CreateSphere(`floatingStar${i}`, {
+        diameter: 0.15,
+        segments: 8
+      }, this.scene);
+      star.material = starMaterial;
+
+      // Position around player (will be updated each frame)
+      star.position = new BABYLON.Vector3(
+        Math.cos(angle) * orbitRadius,
+        1.6, // Eye level
+        Math.sin(angle) * orbitRadius
+      );
+
+      star.parent = this.group;
+
+      // Add a point light for glow
+      const light = new BABYLON.PointLight(`floatingStarLight${i}`,
+        new BABYLON.Vector3(0, 0, 0),
+        this.scene
+      );
+      light.range = 2;
+      light.intensity = 0.5;
+      light.diffuse = new BABYLON.Color3(1, 0.84, 0.42);
+      light.parent = star;
+
+      // Store star data for animation
+      this.floatingStars.push({
+        mesh: star,
+        light: light,
+        baseAngle: angle,
+        orbitSpeed: 0.3 + Math.random() * 0.2, // Slight variation in speed
+        heightOffset: Math.random() * 0.3 - 0.15, // Slight height variation
+        pulse: Math.random() * Math.PI * 2 // Random pulse phase
+      });
+    }
   }
 
   resetZoom() {
@@ -372,11 +489,12 @@ export class Room4 extends BaseRoom {
 
       // Reset central star
       const scale = 0.05 + easeProgress * 0.95;
-      this.centralStar.scale.setScalar(scale);
+      this.centralStar.scaling = new BABYLON.Vector3(scale, scale, scale);
 
       // Reset galaxy
-      this.galaxy.scale.setScalar(20 - easeProgress * 19.9);
-      this.galaxy.material.opacity = 0.8 - easeProgress * 0.8;
+      const galaxyScale = 20 - easeProgress * 19.9;
+      this.galaxy.scaling = new BABYLON.Vector3(galaxyScale, galaxyScale, galaxyScale);
+      this.galaxy.material.alpha = 0.8 - easeProgress * 0.8;
 
       if (progress < 1) {
         requestAnimationFrame(animate);
@@ -391,17 +509,23 @@ export class Room4 extends BaseRoom {
 
   createLighting() {
     // Minimal ambient light for space feel
-    const ambient = new THREE.AmbientLight(0x111133, 0.3);
-    this.group.add(ambient);
+    const ambient = new BABYLON.HemisphericLight('ambientLight', new BABYLON.Vector3(0, 1, 0), this.scene);
+    ambient.intensity = 0.3;
+    ambient.diffuse = new BABYLON.Color3(0.067, 0.067, 0.2); // 0x111133
+    ambient.parent = this.group;
 
     // Dim blue/purple atmospheric lights - lowered for lower ceiling
-    const light1 = new THREE.PointLight(0x4444ff, 0.5, 12);
-    light1.position.set(-6, 2.8, -4).add(this.roomOffset);
-    this.group.add(light1);
+    const light1 = new BABYLON.PointLight('light1', new BABYLON.Vector3(-6, 2.8, -4).add(this.roomOffset), this.scene);
+    light1.range = 12;
+    light1.intensity = 0.5;
+    light1.diffuse = new BABYLON.Color3(0.267, 0.267, 1); // 0x4444ff
+    light1.parent = this.group;
 
-    const light2 = new THREE.PointLight(0x8844ff, 0.5, 12);
-    light2.position.set(6, 2.8, 4).add(this.roomOffset);
-    this.group.add(light2);
+    const light2 = new BABYLON.PointLight('light2', new BABYLON.Vector3(6, 2.8, 4).add(this.roomOffset), this.scene);
+    light2.range = 12;
+    light2.intensity = 0.5;
+    light2.diffuse = new BABYLON.Color3(0.533, 0.267, 1); // 0x8844ff
+    light2.parent = this.group;
   }
 
   async onEnter() {
@@ -433,7 +557,10 @@ export class Room4 extends BaseRoom {
     // Pulse central star
     if (this.centralStar && this.zoomState === 'normal') {
       const pulse = Math.sin(this.animationTime * 2) * 0.1 + 1;
-      this.centralStar.children[0].scale.setScalar(pulse);
+      const children = this.centralStar.getDescendants();
+      if (children.length > 0) {
+        children[0].scaling = new BABYLON.Vector3(pulse, pulse, pulse);
+      }
     }
 
     // Animate orbit lines
@@ -452,12 +579,41 @@ export class Room4 extends BaseRoom {
     this.userStars.forEach(starData => {
       starData.pulse += deltaTime * 3;
       const pulse = Math.sin(starData.pulse) * 0.2 + 1;
-      starData.mesh.scale.setScalar(pulse);
+      starData.mesh.scaling = new BABYLON.Vector3(pulse, pulse, pulse);
     });
 
     // Rotate galaxy
     if (this.galaxy && this.zoomState !== 'zooming_out') {
       this.galaxy.rotation.y += deltaTime * 0.1;
+    }
+
+    // Animate floating stars around the player
+    if (this.floatingStars.length > 0) {
+      // Get camera position from the scene
+      const camera = this.scene.activeCamera;
+      if (camera) {
+        this.floatingStars.forEach((starData, index) => {
+          // Calculate orbit angle (baseAngle + time-based rotation)
+          const currentAngle = starData.baseAngle + this.animationTime * starData.orbitSpeed;
+
+          // Calculate orbit position relative to camera
+          const orbitRadius = 2;
+          const x = camera.position.x + Math.cos(currentAngle) * orbitRadius;
+          const z = camera.position.z + Math.sin(currentAngle) * orbitRadius;
+
+          // Add vertical bobbing
+          const bobSpeed = 2;
+          const bobAmount = 0.15;
+          const y = camera.position.y + starData.heightOffset + Math.sin(this.animationTime * bobSpeed + starData.pulse) * bobAmount;
+
+          // Update star position
+          starData.mesh.position = new BABYLON.Vector3(x, y, z);
+
+          // Add pulsing scale effect
+          const pulseScale = 1 + Math.sin(this.animationTime * 3 + starData.pulse) * 0.2;
+          starData.mesh.scaling = new BABYLON.Vector3(pulseScale, pulseScale, pulseScale);
+        });
+      }
     }
   }
 }

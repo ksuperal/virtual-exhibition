@@ -1,11 +1,9 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 
 export class InteractionManager {
   constructor(camera, scene) {
     this.camera = camera;
     this.scene = scene;
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
     this.interactiveObjects = [];
     this.currentHoveredObject = null;
     this.interactionDistance = 3;
@@ -26,9 +24,12 @@ export class InteractionManager {
   }
 
   addInteractiveObject(object, callback, data = {}) {
-    object.userData.interactive = true;
-    object.userData.callback = callback;
-    object.userData.interactionData = data;
+    if (!object.metadata) {
+      object.metadata = {};
+    }
+    object.metadata.interactive = true;
+    object.metadata.callback = callback;
+    object.metadata.interactionData = data;
     this.interactiveObjects.push(object);
   }
 
@@ -37,8 +38,10 @@ export class InteractionManager {
     if (index > -1) {
       this.interactiveObjects.splice(index, 1);
     }
-    object.userData.interactive = false;
-    object.userData.callback = null;
+    if (object.metadata) {
+      object.metadata.interactive = false;
+      object.metadata.callback = null;
+    }
   }
 
   clearInteractions() {
@@ -47,24 +50,32 @@ export class InteractionManager {
   }
 
   update(camera) {
-    // Raycast from center of screen (crosshair position)
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    // Create a ray from the camera forward direction (center of screen)
+    const forward = camera.getDirection(BABYLON.Axis.Z);
+    const ray = new BABYLON.Ray(camera.position, forward, this.interactionDistance);
 
-    const intersects = this.raycaster.intersectObjects(this.interactiveObjects, true);
+    // Pick with ray
+    const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+      // Check if mesh or any of its parents are interactive
+      let current = mesh;
+      while (current) {
+        if (this.interactiveObjects.includes(current)) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
+    });
 
-    // Find closest interactive object within range
+    // Find the interactive parent
     let closestInteractive = null;
-    for (const intersect of intersects) {
-      if (intersect.distance <= this.interactionDistance) {
-        // Find the interactive parent
-        let obj = intersect.object;
-        while (obj && !obj.userData.interactive) {
-          obj = obj.parent;
-        }
-        if (obj && obj.userData.interactive) {
-          closestInteractive = obj;
-          break;
-        }
+    if (pickInfo && pickInfo.hit && pickInfo.distance <= this.interactionDistance) {
+      let obj = pickInfo.pickedMesh;
+      while (obj && (!obj.metadata || !obj.metadata.interactive)) {
+        obj = obj.parent;
+      }
+      if (obj && obj.metadata && obj.metadata.interactive) {
+        closestInteractive = obj;
       }
     }
 
@@ -86,14 +97,14 @@ export class InteractionManager {
     const promptText = document.getElementById('prompt-text');
 
     if (prompt && promptText) {
-      const text = object.userData.interactionData?.promptText || 'Press E to interact';
+      const text = object.metadata?.interactionData?.promptText || 'Press E to interact';
       promptText.textContent = text;
       prompt.classList.remove('hidden');
     }
 
     // Optional: Change cursor or highlight object
-    if (object.userData.onHover) {
-      object.userData.onHover(object, true);
+    if (object.metadata?.onHover) {
+      object.metadata.onHover(object, true);
     }
   }
 
@@ -105,8 +116,8 @@ export class InteractionManager {
     }
 
     // Optional: Reset object appearance
-    if (object.userData.onHover) {
-      object.userData.onHover(object, false);
+    if (object.metadata?.onHover) {
+      object.metadata.onHover(object, false);
     }
   }
 
@@ -118,8 +129,8 @@ export class InteractionManager {
   }
 
   triggerInteraction() {
-    if (this.currentHoveredObject && this.currentHoveredObject.userData.callback) {
-      this.currentHoveredObject.userData.callback(this.currentHoveredObject);
+    if (this.currentHoveredObject && this.currentHoveredObject.metadata?.callback) {
+      this.currentHoveredObject.metadata.callback(this.currentHoveredObject);
     }
   }
 

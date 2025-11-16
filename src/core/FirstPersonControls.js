@@ -1,14 +1,15 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 
 export class FirstPersonControls {
-  constructor(camera, domElement) {
+  constructor(camera, domElement, scene) {
     this.camera = camera;
     this.domElement = domElement;
+    this.scene = scene;
 
     // Movement - INCREASED: from 5.0 to 10.0 for faster navigation
     this.moveSpeed = 10.0;
-    this.velocity = new THREE.Vector3();
-    this.direction = new THREE.Vector3();
+    this.velocity = new BABYLON.Vector3();
+    this.direction = new BABYLON.Vector3();
 
     // Keys
     this.keys = {
@@ -20,12 +21,10 @@ export class FirstPersonControls {
     };
 
     // Mouse look
-    this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    this.rotationX = 0;
+    this.rotationY = 0;
     this.lookSpeed = 0.002;
     this.isLocked = false;
-
-    // Raycaster for collision
-    this.raycaster = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, 2);
 
     this.init();
   }
@@ -41,11 +40,14 @@ export class FirstPersonControls {
     });
 
     // Mouse movement
-    document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    this.onMouseMoveBound = (e) => this.onMouseMove(e);
+    document.addEventListener('mousemove', this.onMouseMoveBound);
 
     // Keyboard
-    document.addEventListener('keydown', (e) => this.onKeyDown(e));
-    document.addEventListener('keyup', (e) => this.onKeyUp(e));
+    this.onKeyDownBound = (e) => this.onKeyDown(e);
+    this.onKeyUpBound = (e) => this.onKeyUp(e);
+    document.addEventListener('keydown', this.onKeyDownBound);
+    document.addEventListener('keyup', this.onKeyUpBound);
   }
 
   onMouseMove(event) {
@@ -54,14 +56,16 @@ export class FirstPersonControls {
     const movementX = event.movementX || 0;
     const movementY = event.movementY || 0;
 
-    this.euler.setFromQuaternion(this.camera.quaternion);
-    this.euler.y -= movementX * this.lookSpeed;
-    this.euler.x -= movementY * this.lookSpeed;
+    // Update rotation - FIXED: reversed signs for natural camera control
+    this.rotationY += movementX * this.lookSpeed; // Move right = look right
+    this.rotationX += movementY * this.lookSpeed; // Move down = look down
 
     // Clamp vertical rotation
-    this.euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.euler.x));
+    this.rotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.rotationX));
 
-    this.camera.quaternion.setFromEuler(this.euler);
+    // Apply rotation to camera
+    this.camera.rotation.x = this.rotationX;
+    this.camera.rotation.y = this.rotationY;
   }
 
   onKeyDown(event) {
@@ -136,31 +140,31 @@ export class FirstPersonControls {
     }
 
     // Apply movement
-    const moveVector = new THREE.Vector3();
-    moveVector.copy(this.velocity).multiplyScalar(deltaTime);
+    const moveVector = this.velocity.scale(deltaTime);
 
     // Transform movement to camera space
-    const cameraDirection = new THREE.Vector3();
-    this.camera.getWorldDirection(cameraDirection);
-
-    const right = new THREE.Vector3();
-    right.crossVectors(cameraDirection, this.camera.up).normalize();
-
-    const forward = new THREE.Vector3();
-    forward.copy(cameraDirection);
+    const forward = this.camera.getDirection(BABYLON.Axis.Z);
     forward.y = 0;
     forward.normalize();
 
+    const right = this.camera.getDirection(BABYLON.Axis.X);
+    right.y = 0;
+    right.normalize();
+
     // Apply movement
-    this.camera.position.addScaledVector(forward, -moveVector.z);
-    this.camera.position.addScaledVector(right, -moveVector.x);
+    this.camera.position.addInPlace(forward.scale(-moveVector.z));
+    this.camera.position.addInPlace(right.scale(-moveVector.x));
 
     // Keep camera at eye level
     this.camera.position.y = 1.6;
   }
 
   reset() {
-    this.velocity.set(0, 0, 0);
+    this.velocity = new BABYLON.Vector3();
+    this.rotationX = 0;
+    this.rotationY = 0;
+    this.camera.rotation.x = 0;
+    this.camera.rotation.y = 0;
     this.keys = {
       forward: false,
       backward: false,
@@ -171,8 +175,8 @@ export class FirstPersonControls {
   }
 
   dispose() {
-    document.removeEventListener('mousemove', this.onMouseMove);
-    document.removeEventListener('keydown', this.onKeyDown);
-    document.removeEventListener('keyup', this.onKeyUp);
+    document.removeEventListener('mousemove', this.onMouseMoveBound);
+    document.removeEventListener('keydown', this.onKeyDownBound);
+    document.removeEventListener('keyup', this.onKeyUpBound);
   }
 }

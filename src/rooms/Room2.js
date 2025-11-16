@@ -1,10 +1,10 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room2 extends BaseRoom {
-  constructor(scene, interactionManager, audioManager) {
-    super(scene, interactionManager, audioManager);
-    this.roomOffset = new THREE.Vector3(30, 0, 0);
+  constructor(scene, interactionManager, audioManager, shadowGenerator) {
+    super(scene, interactionManager, audioManager, shadowGenerator);
+    this.roomOffset = new BABYLON.Vector3(30, 0, 0);
     this.hasBurden = true;
     this.burdenBag = null;
   }
@@ -21,8 +21,8 @@ export class Room2 extends BaseRoom {
   createRoomStructure() {
     // ENCLOSED: Smaller, lower ceiling for cozy enclosed feeling
     const walls = this.createWalls(12, 3.2, 12, 0xe6e6fa); // Lavender, lower ceiling
-    walls.position.copy(this.roomOffset);
-    this.group.add(walls);
+    walls.position = this.roomOffset;
+    walls.parent = this.group;
 
     // Add checkered floor pattern
     this.createCheckeredFloor();
@@ -32,33 +32,27 @@ export class Room2 extends BaseRoom {
   }
 
   createDividingWalls() {
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd8bfd8,
-      roughness: 0.7
-    });
+    const wallMaterial = new BABYLON.StandardMaterial('wallMat', this.scene);
+    wallMaterial.diffuse = BABYLON.Color3.FromHexString('#d8bfd8');
+    wallMaterial.roughness = 0.7;
 
     // Create partial dividing walls for enclosed corridor effect
-    const wall1 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 3.2, 4),
-      wallMaterial
-    );
-    wall1.position.set(-2, 1.6, -4).add(this.roomOffset);
-    this.group.add(wall1);
+    const wall1 = BABYLON.MeshBuilder.CreateBox('wall1', { width: 0.3, height: 3.2, depth: 4 }, this.scene);
+    wall1.material = wallMaterial;
+    wall1.position = new BABYLON.Vector3(-2, 1.6, -4);
+    wall1.position.addInPlace(this.roomOffset);
+    wall1.parent = this.group;
 
-    const wall2 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 3.2, 4),
-      wallMaterial
-    );
-    wall2.position.set(2, 1.6, 4).add(this.roomOffset);
-    this.group.add(wall2);
+    const wall2 = wall1.clone('wall2');
+    wall2.position = new BABYLON.Vector3(2, 1.6, 4);
+    wall2.position.addInPlace(this.roomOffset);
+    wall2.parent = this.group;
   }
 
   createCheckeredFloor() {
     // OPTIMIZED: Use a single plane with a checkerboard texture
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
+    const dynamicTexture = new BABYLON.DynamicTexture('checkeredFloor', 512, this.scene);
+    const ctx = dynamicTexture.getContext('2d');
 
     const tileSize = 512 / 12; // 12 tiles across
     for (let x = 0; x < 12; x++) {
@@ -68,22 +62,19 @@ export class Room2 extends BaseRoom {
         ctx.fillRect(x * tileSize, z * tileSize, tileSize, tileSize);
       }
     }
+    dynamicTexture.update();
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
+    const floorMaterial = new BABYLON.StandardMaterial('floorMat', this.scene);
+    floorMaterial.diffuseTexture = dynamicTexture;
+    floorMaterial.roughness = 0.7;
 
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshStandardMaterial({
-        map: texture,
-        roughness: 0.7
-      })
-    );
+    const floor = BABYLON.MeshBuilder.CreatePlane('floor', { width: 12, height: 12 }, this.scene);
+    floor.material = floorMaterial;
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, 0.01, 0).add(this.roomOffset);
-    floor.receiveShadow = true;
-    this.group.add(floor);
+    floor.position = new BABYLON.Vector3(0, 0.01, 0);
+    floor.position.addInPlace(this.roomOffset);
+    floor.receiveShadows = true;
+    floor.parent = this.group;
   }
 
   createObstacles() {
@@ -101,44 +92,39 @@ export class Room2 extends BaseRoom {
   }
 
   createLowTunnel() {
-    const tunnel = new THREE.Group();
+    const tunnel = new BABYLON.TransformNode('tunnel', this.scene);
 
     // Tunnel walls
-    const tunnelMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff1493,
-      roughness: 0.6,
-      emissive: 0xff1493,
-      emissiveIntensity: 0.1
-    });
+    const tunnelMaterial = new BABYLON.StandardMaterial('tunnelMat', this.scene);
+    tunnelMaterial.diffuse = BABYLON.Color3.FromHexString('#ff1493');
+    tunnelMaterial.roughness = 0.6;
+    tunnelMaterial.emissiveColor = BABYLON.Color3.FromHexString('#ff1493');
 
     // Top
-    const top = new THREE.Mesh(
-      new THREE.BoxGeometry(3, 0.2, 2.5),
-      tunnelMaterial
-    );
-    top.position.set(0, 0.8, 0);
-    tunnel.add(top);
+    const top = BABYLON.MeshBuilder.CreateBox('tunnelTop', { width: 3, height: 0.2, depth: 2.5 }, this.scene);
+    top.material = tunnelMaterial;
+    top.position = new BABYLON.Vector3(0, 0.8, 0);
+    top.parent = tunnel;
 
     // Sides
-    const leftSide = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.8, 2.5),
-      tunnelMaterial
-    );
-    leftSide.position.set(-1.5, 0.4, 0);
-    tunnel.add(leftSide);
+    const leftSide = BABYLON.MeshBuilder.CreateBox('leftSide', { width: 0.2, height: 0.8, depth: 2.5 }, this.scene);
+    leftSide.material = tunnelMaterial;
+    leftSide.position = new BABYLON.Vector3(-1.5, 0.4, 0);
+    leftSide.parent = tunnel;
 
-    const rightSide = leftSide.clone();
-    rightSide.position.set(1.5, 0.4, 0);
-    tunnel.add(rightSide);
+    const rightSide = leftSide.clone('rightSide');
+    rightSide.position = new BABYLON.Vector3(1.5, 0.4, 0);
+    rightSide.parent = tunnel;
 
     // Sign
     this.createSign(
       'You must go lower to move forward',
-      new THREE.Vector3(-2, 1.5, -1.5)
+      new BABYLON.Vector3(-2, 1.5, -1.5)
     );
 
-    tunnel.position.set(-3, 0, -3).add(this.roomOffset);
-    this.group.add(tunnel);
+    tunnel.position = new BABYLON.Vector3(-3, 0, -3);
+    tunnel.position.addInPlace(this.roomOffset);
+    tunnel.parent = this.group;
   }
 
   createHighStep() {
@@ -146,77 +132,73 @@ export class Room2 extends BaseRoom {
     const step = this.createBox(
       3, 1.2, 2.5,
       0x9370db,
-      new THREE.Vector3(3, 0.6, -2).add(this.roomOffset)
+      new BABYLON.Vector3(3, 0.6, -2).addInPlace(this.roomOffset)
     );
-    this.group.add(step);
+    step.parent = this.group;
 
     // Stairs leading up
     for (let i = 0; i < 3; i++) {
       const stair = this.createBox(
         0.8, 0.3 + i * 0.3, 2.5,
         0x8a2be2,
-        new THREE.Vector3(1.5 - i * 0.8, 0.15 + i * 0.15, -2).add(this.roomOffset)
+        new BABYLON.Vector3(1.5 - i * 0.8, 0.15 + i * 0.15, -2).addInPlace(this.roomOffset)
       );
-      this.group.add(stair);
+      stair.parent = this.group;
     }
 
     this.createSign(
       'Only the unburdened can climb high',
-      new THREE.Vector3(2, 2, -3).add(this.roomOffset)
+      new BABYLON.Vector3(2, 2, -3).addInPlace(this.roomOffset)
     );
   }
 
   createNarrowDoor() {
     // Narrow doorframe
-    const frame = new THREE.Group();
+    const frame = new BABYLON.TransformNode('doorFrame', this.scene);
 
-    const frameMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
-      roughness: 0.5,
-      metalness: 0.6
-    });
+    const frameMaterial = new BABYLON.StandardMaterial('frameMat', this.scene);
+    frameMaterial.diffuse = BABYLON.Color3.FromHexString('#ffd700');
+    frameMaterial.roughness = 0.5;
+    frameMaterial.specularColor = BABYLON.Color3.White().scale(0.6);
 
-    const leftPost = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 3, 0.3),
-      frameMaterial
-    );
-    leftPost.position.set(-0.5, 1.5, 0);
-    frame.add(leftPost);
+    const leftPost = BABYLON.MeshBuilder.CreateBox('leftPost', { width: 0.3, height: 3, depth: 0.3 }, this.scene);
+    leftPost.material = frameMaterial;
+    leftPost.position = new BABYLON.Vector3(-0.5, 1.5, 0);
+    leftPost.parent = frame;
 
-    const rightPost = leftPost.clone();
-    rightPost.position.set(0.5, 1.5, 0);
-    frame.add(rightPost);
+    const rightPost = leftPost.clone('rightPost');
+    rightPost.position = new BABYLON.Vector3(0.5, 1.5, 0);
+    rightPost.parent = frame;
 
-    const top = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 0.3, 0.3),
-      frameMaterial
-    );
-    top.position.set(0, 2.85, 0);
-    frame.add(top);
+    const top = BABYLON.MeshBuilder.CreateBox('doorTop', { width: 1, height: 0.3, depth: 0.3 }, this.scene);
+    top.material = frameMaterial;
+    top.position = new BABYLON.Vector3(0, 2.85, 0);
+    top.parent = frame;
 
-    frame.position.set(0, 0, 3).add(this.roomOffset);
-    this.group.add(frame);
+    frame.position = new BABYLON.Vector3(0, 0, 3);
+    frame.position.addInPlace(this.roomOffset);
+    frame.parent = this.group;
 
     this.createSign(
       'Lighten your load to pass through',
-      new THREE.Vector3(-2, 2, 4).add(this.roomOffset)
+      new BABYLON.Vector3(-2, 2, 4).addInPlace(this.roomOffset)
     );
   }
 
   createTiltedSection() {
     // Tilted floor section
-    const tiltedFloor = new THREE.Mesh(
-      new THREE.PlaneGeometry(5, 4),
-      new THREE.MeshStandardMaterial({
-        color: 0x20b2aa,
-        roughness: 0.8
-      })
-    );
+    const tiltedMaterial = new BABYLON.StandardMaterial('tiltedMat', this.scene);
+    tiltedMaterial.diffuse = BABYLON.Color3.FromHexString('#20b2aa');
+    tiltedMaterial.roughness = 0.8;
+
+    const tiltedFloor = BABYLON.MeshBuilder.CreatePlane('tiltedFloor', { width: 5, height: 4 }, this.scene);
+    tiltedFloor.material = tiltedMaterial;
     tiltedFloor.rotation.x = -Math.PI / 2;
     tiltedFloor.rotation.z = Math.PI / 12; // 15 degrees tilt
-    tiltedFloor.position.set(-7, 0.02, 5).add(this.roomOffset);
-    tiltedFloor.receiveShadow = true;
-    this.group.add(tiltedFloor);
+    tiltedFloor.position = new BABYLON.Vector3(-7, 0.02, 5);
+    tiltedFloor.position.addInPlace(this.roomOffset);
+    tiltedFloor.receiveShadows = true;
+    tiltedFloor.parent = this.group;
   }
 
   createWhimsicalDecor() {
@@ -234,70 +216,67 @@ export class Room2 extends BaseRoom {
   }
 
   createPlayingCards() {
-    const cardGeometry = new THREE.PlaneGeometry(0.8, 1.2);
+    const cardMaterial = new BABYLON.StandardMaterial('cardMat', this.scene);
+    cardMaterial.diffuse = BABYLON.Color3.White();
+    cardMaterial.roughness = 0.3;
+    cardMaterial.backFaceCulling = false;
+
     const cards = [
-      { color: 0xff0000, pos: new THREE.Vector3(4, 2, -4) },
-      { color: 0x000000, pos: new THREE.Vector3(3.5, 2.5, -3) },
-      { color: 0xff0000, pos: new THREE.Vector3(3, 1.8, -3.5) }
+      { color: 0xff0000, pos: new BABYLON.Vector3(4, 2, -4) },
+      { color: 0x000000, pos: new BABYLON.Vector3(3.5, 2.5, -3) },
+      { color: 0xff0000, pos: new BABYLON.Vector3(3, 1.8, -3.5) }
     ];
 
-    cards.forEach(card => {
-      const cardMesh = new THREE.Mesh(
-        cardGeometry,
-        new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          roughness: 0.3,
-          side: THREE.DoubleSide
-        })
-      );
-      cardMesh.position.copy(card.pos.add(this.roomOffset));
+    cards.forEach((card, index) => {
+      const cardMesh = BABYLON.MeshBuilder.CreatePlane(`card${index}`, { width: 0.8, height: 1.2 }, this.scene);
+      cardMesh.material = cardMaterial;
+      cardMesh.position = card.pos.clone();
+      cardMesh.position.addInPlace(this.roomOffset);
       cardMesh.rotation.y = Math.random() * Math.PI;
-      this.group.add(cardMesh);
+      cardMesh.parent = this.group;
 
       // Add colored pattern
-      const pattern = new THREE.Mesh(
-        new THREE.CircleGeometry(0.2, 32),
-        new THREE.MeshStandardMaterial({ color: card.color })
-      );
-      pattern.position.copy(cardMesh.position);
+      const patternMaterial = new BABYLON.StandardMaterial(`patternMat${index}`, this.scene);
+      patternMaterial.diffuse = BABYLON.Color3.FromHexString(card.color.toString(16).padStart(6, '0'));
+
+      const pattern = BABYLON.MeshBuilder.CreateCylinder(`pattern${index}`, { diameter: 0.2, height: 0.01 }, this.scene);
+      pattern.material = patternMaterial;
+      pattern.position = cardMesh.position.clone();
       pattern.position.z += 0.01;
-      this.group.add(pattern);
+      pattern.parent = this.group;
     });
   }
 
   createTeacups() {
+    const cupMaterial = new BABYLON.StandardMaterial('cupMat', this.scene);
+    cupMaterial.diffuse = BABYLON.Color3.White();
+    cupMaterial.roughness = 0.2;
+    cupMaterial.specularColor = BABYLON.Color3.White().scale(0.3);
+
     const positions = [
-      new THREE.Vector3(-4, 1.5, 0),
-      new THREE.Vector3(-3, 2, 1.5),
-      new THREE.Vector3(4, 1.8, 3)
+      new BABYLON.Vector3(-4, 1.5, 0),
+      new BABYLON.Vector3(-3, 2, 1.5),
+      new BABYLON.Vector3(4, 1.8, 3)
     ];
 
     positions.forEach((pos, index) => {
-      const cup = new THREE.Group();
+      const cup = new BABYLON.TransformNode(`cup${index}`, this.scene);
 
       // Cup body - OPTIMIZED: reduced segments from 32 to 16
-      const cupBody = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.15, 0.1, 0.25, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          roughness: 0.2,
-          metalness: 0.3
-        })
-      );
-      cup.add(cupBody);
+      const cupBody = BABYLON.MeshBuilder.CreateCylinder(`cupBody${index}`, { diameterTop: 0.15, diameterBottom: 0.1, height: 0.25, tessellation: 16 }, this.scene);
+      cupBody.material = cupMaterial;
+      cupBody.parent = cup;
 
       // Handle - OPTIMIZED: reduced segments
-      const handleGeometry = new THREE.TorusGeometry(0.08, 0.02, 8, 16, Math.PI);
-      const handle = new THREE.Mesh(
-        handleGeometry,
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
-      );
+      const handle = BABYLON.MeshBuilder.CreateTorus(`handle${index}`, { diameter: 0.16, thickness: 0.02, tessellation: 8 }, this.scene);
+      handle.material = cupMaterial;
       handle.rotation.y = -Math.PI / 2;
-      handle.position.set(0.15, 0, 0);
-      cup.add(handle);
+      handle.position = new BABYLON.Vector3(0.15, 0, 0);
+      handle.parent = cup;
 
-      cup.position.copy(pos.add(this.roomOffset));
-      this.group.add(cup);
+      cup.position = pos.clone();
+      cup.position.addInPlace(this.roomOffset);
+      cup.parent = this.group;
 
       // Store for animation
       if (!this.teacups) this.teacups = [];
@@ -306,112 +285,113 @@ export class Room2 extends BaseRoom {
   }
 
   createClocks() {
+    const faceMaterial = new BABYLON.StandardMaterial('faceMat', this.scene);
+    faceMaterial.diffuse = BABYLON.Color3.FromHexString('#f5f5dc');
+    faceMaterial.roughness = 0.4;
+
+    const handMaterial = new BABYLON.StandardMaterial('handMat', this.scene);
+    handMaterial.diffuse = BABYLON.Color3.Black();
+
     const positions = [
-      new THREE.Vector3(-5, 2.8, 4),
-      new THREE.Vector3(5, 2.8, -1),
-      new THREE.Vector3(0, 3, 5)
+      new BABYLON.Vector3(-5, 2.8, 4),
+      new BABYLON.Vector3(5, 2.8, -1),
+      new BABYLON.Vector3(0, 3, 5)
     ];
 
     positions.forEach((pos, index) => {
-      const clock = new THREE.Group();
+      const clock = new BABYLON.TransformNode(`clock${index}`, this.scene);
 
       // Clock face
-      const face = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32),
-        new THREE.MeshStandardMaterial({
-          color: 0xf5f5dc,
-          roughness: 0.4
-        })
-      );
+      const face = BABYLON.MeshBuilder.CreateCylinder(`clockFace${index}`, { diameter: 0.4, height: 0.1, tessellation: 32 }, this.scene);
+      face.material = faceMaterial;
       face.rotation.z = Math.PI / 2;
-      clock.add(face);
+      face.parent = clock;
 
       // Clock hands
-      const hourHand = new THREE.Mesh(
-        new THREE.BoxGeometry(0.02, 0.2, 0.01),
-        new THREE.MeshStandardMaterial({ color: 0x000000 })
-      );
-      hourHand.position.set(0.06, 0, 0);
+      const hourHand = BABYLON.MeshBuilder.CreateBox(`hourHand${index}`, { width: 0.02, height: 0.2, depth: 0.01 }, this.scene);
+      hourHand.material = handMaterial;
+      hourHand.position = new BABYLON.Vector3(0.06, 0, 0);
       hourHand.rotation.z = (index * Math.PI) / 2;
-      clock.add(hourHand);
+      hourHand.parent = clock;
 
-      const minuteHand = new THREE.Mesh(
-        new THREE.BoxGeometry(0.02, 0.3, 0.01),
-        new THREE.MeshStandardMaterial({ color: 0x000000 })
-      );
-      minuteHand.position.set(0.06, 0, 0);
+      const minuteHand = BABYLON.MeshBuilder.CreateBox(`minuteHand${index}`, { width: 0.02, height: 0.3, depth: 0.01 }, this.scene);
+      minuteHand.material = handMaterial;
+      minuteHand.position = new BABYLON.Vector3(0.06, 0, 0);
       minuteHand.rotation.z = (index * Math.PI) / 3;
-      clock.add(minuteHand);
+      minuteHand.parent = clock;
 
-      clock.position.copy(pos.add(this.roomOffset));
-      this.group.add(clock);
+      clock.position = pos.clone();
+      clock.position.addInPlace(this.roomOffset);
+      clock.parent = this.group;
     });
   }
 
   createMushrooms() {
+    const stemMaterial = new BABYLON.StandardMaterial('stemMat', this.scene);
+    stemMaterial.diffuse = BABYLON.Color3.FromHexString('#f5f5dc');
+
+    const capMaterial = new BABYLON.StandardMaterial('capMat', this.scene);
+    capMaterial.diffuse = BABYLON.Color3.FromHexString('#ff6347');
+    capMaterial.roughness = 0.7;
+
+    const spotMaterial = new BABYLON.StandardMaterial('spotMat', this.scene);
+    spotMaterial.diffuse = BABYLON.Color3.White();
+
     const positions = [
-      { pos: new THREE.Vector3(3.5, 0, 4), scale: 1 },
-      { pos: new THREE.Vector3(4, 0, 3.5), scale: 0.7 },
-      { pos: new THREE.Vector3(3, 0, 3.8), scale: 1.2 }
+      { pos: new BABYLON.Vector3(3.5, 0, 4), scale: 1 },
+      { pos: new BABYLON.Vector3(4, 0, 3.5), scale: 0.7 },
+      { pos: new BABYLON.Vector3(3, 0, 3.8), scale: 1.2 }
     ];
 
-    positions.forEach(data => {
-      const mushroom = new THREE.Group();
+    positions.forEach((data, index) => {
+      const mushroom = new BABYLON.TransformNode(`mushroom${index}`, this.scene);
 
       // Stem
-      const stem = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.12, 0.5, 16),
-        new THREE.MeshStandardMaterial({ color: 0xf5f5dc })
-      );
+      const stem = BABYLON.MeshBuilder.CreateCylinder(`stem${index}`, { diameterTop: 0.1, diameterBottom: 0.12, height: 0.5, tessellation: 16 }, this.scene);
+      stem.material = stemMaterial;
       stem.position.y = 0.25;
-      mushroom.add(stem);
+      stem.parent = mushroom;
 
       // Cap
-      const cap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshStandardMaterial({
-          color: 0xff6347,
-          roughness: 0.7
-        })
-      );
+      const cap = BABYLON.MeshBuilder.CreateSphere(`cap${index}`, { diameter: 0.5, segments: 16 }, this.scene);
+      cap.material = capMaterial;
       cap.position.y = 0.5;
-      mushroom.add(cap);
+      cap.parent = mushroom;
 
       // Spots
       for (let i = 0; i < 5; i++) {
-        const spot = new THREE.Mesh(
-          new THREE.SphereGeometry(0.04, 8, 8),
-          new THREE.MeshStandardMaterial({ color: 0xffffff })
-        );
+        const spot = BABYLON.MeshBuilder.CreateSphere(`spot${index}_${i}`, { diameter: 0.08, segments: 8 }, this.scene);
+        spot.material = spotMaterial;
         const angle = (i / 5) * Math.PI * 2;
-        spot.position.set(
+        spot.position = new BABYLON.Vector3(
           Math.cos(angle) * 0.15,
           0.55,
           Math.sin(angle) * 0.15
         );
-        mushroom.add(spot);
+        spot.parent = mushroom;
       }
 
-      mushroom.scale.multiplyScalar(data.scale);
-      mushroom.position.copy(data.pos.add(this.roomOffset));
-      this.group.add(mushroom);
+      mushroom.scaling = new BABYLON.Vector3(data.scale, data.scale, data.scale);
+      mushroom.position = data.pos.clone();
+      mushroom.position.addInPlace(this.roomOffset);
+      mushroom.parent = this.group;
     });
   }
 
   createSign(text, position) {
     // Create a sign with text
-    const sign = new THREE.Group();
+    const sign = new BABYLON.TransformNode('sign', this.scene);
 
     // Sign post
-    const post = this.createCylinder(0.05, 0.05, 1.5, 0x8b4513, new THREE.Vector3(0, 0.75, 0));
-    sign.add(post);
+    const post = this.createCylinder(0.05, 0.05, 1.5, 0x8b4513, new BABYLON.Vector3(0, 0.75, 0));
+    post.parent = sign;
 
     // Sign board
-    const board = this.createBox(2, 0.5, 0.1, 0xf5deb3, new THREE.Vector3(0, 1.8, 0));
-    sign.add(board);
+    const board = this.createBox(2, 0.5, 0.1, 0xf5deb3, new BABYLON.Vector3(0, 1.8, 0));
+    board.parent = sign;
 
-    sign.position.copy(position);
-    this.group.add(sign);
+    sign.position = position;
+    sign.parent = this.group;
 
     // Make sign interactive to show text
     this.addInteractiveObject(board, () => {
@@ -424,33 +404,31 @@ export class Room2 extends BaseRoom {
 
   createBurdenSystem() {
     // Create visual burden (backpack)
-    const burdenGeometry = new THREE.BoxGeometry(0.4, 0.5, 0.3);
-    const burdenMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8b4513,
-      roughness: 0.8
-    });
-    this.burdenBag = new THREE.Mesh(burdenGeometry, burdenMaterial);
-    this.burdenBag.visible = false; // Will attach to camera later
-    this.group.add(this.burdenBag);
+    const burdenMaterial = new BABYLON.StandardMaterial('burdenMat', this.scene);
+    burdenMaterial.diffuse = BABYLON.Color3.FromHexString('#8b4513');
+    burdenMaterial.roughness = 0.8;
+
+    this.burdenBag = BABYLON.MeshBuilder.CreateBox('burdenBag', { width: 0.4, height: 0.5, depth: 0.3 }, this.scene);
+    this.burdenBag.material = burdenMaterial;
+    this.burdenBag.isVisible = false; // Will attach to camera later
+    this.burdenBag.parent = this.group;
 
     // Create "burden drop zone"
     this.createBurdenDropZone();
   }
 
   createBurdenDropZone() {
-    const dropZone = new THREE.Mesh(
-      new THREE.CircleGeometry(1.5, 32),
-      new THREE.MeshStandardMaterial({
-        color: 0x90ee90,
-        transparent: true,
-        opacity: 0.6,
-        emissive: 0x90ee90,
-        emissiveIntensity: 0.3
-      })
-    );
+    const dropZoneMaterial = new BABYLON.StandardMaterial('dropZoneMat', this.scene);
+    dropZoneMaterial.diffuse = BABYLON.Color3.FromHexString('#90ee90');
+    dropZoneMaterial.alpha = 0.6;
+    dropZoneMaterial.emissiveColor = BABYLON.Color3.FromHexString('#90ee90').scale(0.3);
+
+    const dropZone = BABYLON.MeshBuilder.CreateCylinder('dropZone', { diameter: 3, height: 0.01, tessellation: 32 }, this.scene);
+    dropZone.material = dropZoneMaterial;
     dropZone.rotation.x = -Math.PI / 2;
-    dropZone.position.set(0, 0.02, 6).add(this.roomOffset);
-    this.group.add(dropZone);
+    dropZone.position = new BABYLON.Vector3(0, 0.02, 6);
+    dropZone.position.addInPlace(this.roomOffset);
+    dropZone.parent = this.group;
 
     // Add text prompt
     this.addInteractiveObject(dropZone, () => {
@@ -487,35 +465,40 @@ export class Room2 extends BaseRoom {
 
   onBurdenDropped() {
     // Change room lighting to be brighter and more playful
-    const newLight = new THREE.PointLight(0xffff00, 3, 20);
-    newLight.position.set(0, 4, 0).add(this.roomOffset);
-    this.group.add(newLight);
+    const newLight = new BABYLON.PointLight('burdenLight', new BABYLON.Vector3(0, 4, 0), this.scene);
+    newLight.intensity = 3;
+    newLight.range = 20;
+    newLight.position.addInPlace(this.roomOffset);
+    newLight.parent = this.group;
 
     // Make drop zone disappear
     if (this.dropZone) {
-      this.dropZone.visible = false;
+      this.dropZone.isVisible = false;
     }
   }
 
   createLighting() {
     // Whimsical colored lighting - lowered for lower ceiling
     const lights = [
-      { color: 0xff69b4, pos: new THREE.Vector3(-5, 3, -5) },
-      { color: 0x9370db, pos: new THREE.Vector3(5, 3, -5) },
-      { color: 0x20b2aa, pos: new THREE.Vector3(-5, 3, 5) },
-      { color: 0xffd700, pos: new THREE.Vector3(5, 3, 5) }
+      { color: '#ff69b4', pos: new BABYLON.Vector3(-5, 3, -5) },
+      { color: '#9370db', pos: new BABYLON.Vector3(5, 3, -5) },
+      { color: '#20b2aa', pos: new BABYLON.Vector3(-5, 3, 5) },
+      { color: '#ffd700', pos: new BABYLON.Vector3(5, 3, 5) }
     ];
 
-    lights.forEach(data => {
-      const light = new THREE.PointLight(data.color, 1.5, 12);
-      light.position.copy(data.pos.add(this.roomOffset));
-      light.castShadow = true;
-      this.group.add(light);
+    lights.forEach((data, index) => {
+      const light = new BABYLON.PointLight(`pointLight${index}`, data.pos.clone(), this.scene);
+      light.diffuse = BABYLON.Color3.FromHexString(data.color);
+      light.intensity = 1.5;
+      light.range = 12;
+      light.position.addInPlace(this.roomOffset);
+      light.parent = this.group;
     });
 
     // Ambient light
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-    this.group.add(ambient);
+    const ambient = new BABYLON.HemisphericLight('ambientLight', new BABYLON.Vector3(0, 1, 0), this.scene);
+    ambient.intensity = 0.4;
+    ambient.parent = this.group;
   }
 
   async onEnter() {

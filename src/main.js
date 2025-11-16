@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { SceneManager } from './core/SceneManager.js';
 import { UIManager } from './core/UIManager.js';
 

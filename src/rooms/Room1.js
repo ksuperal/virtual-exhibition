@@ -1,10 +1,10 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room1 extends BaseRoom {
-  constructor(scene, interactionManager, audioManager) {
-    super(scene, interactionManager, audioManager);
-    this.roomOffset = new THREE.Vector3(0, 0, 0);
+  constructor(scene, interactionManager, audioManager, shadowGenerator) {
+    super(scene, interactionManager, audioManager, shadowGenerator);
+    this.roomOffset = new BABYLON.Vector3(0, 0, 0);
   }
 
   async init() {
@@ -18,8 +18,8 @@ export class Room1 extends BaseRoom {
   createRoomStructure() {
     // ENCLOSED: Smaller room with lower ceiling for intimate feeling
     const walls = this.createWalls(12, 2.8, 10, 0xf5deb3); // Wheat color, ceiling lowered to 2.8
-    walls.position.copy(this.roomOffset);
-    this.group.add(walls);
+    walls.position = this.roomOffset;
+    walls.parent = this.group;
 
     // Add side partitions for more enclosed feeling
     this.createSidePartitions();
@@ -33,26 +33,37 @@ export class Room1 extends BaseRoom {
 
   createSidePartitions() {
     // Add partial walls/dividers to make room feel more enclosed
-    const partitionMaterial = new THREE.MeshStandardMaterial({
-      color: 0xe6dcc8,
-      roughness: 0.8
-    });
+    const partitionMaterial = new BABYLON.StandardMaterial('partitionMaterial', this.scene);
+    partitionMaterial.diffuseColor = BABYLON.Color3.FromHexString('#e6dcc8');
+    partitionMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
     // Left partition
-    const leftPartition = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2.8, 4),
-      partitionMaterial
-    );
-    leftPartition.position.set(-3, 1.4, 2).add(this.roomOffset);
-    this.group.add(leftPartition);
+    const leftPartition = BABYLON.MeshBuilder.CreateBox('leftPartition', {
+      width: 0.2,
+      height: 2.8,
+      depth: 4
+    }, this.scene);
+    leftPartition.material = partitionMaterial;
+    leftPartition.position = new BABYLON.Vector3(-3, 1.4, 2).add(this.roomOffset);
+    leftPartition.parent = this.group;
+    if (this.shadowGenerator) {
+      this.shadowGenerator.addShadowCaster(leftPartition);
+    }
+    leftPartition.receiveShadows = true;
 
     // Right partition
-    const rightPartition = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2.8, 4),
-      partitionMaterial
-    );
-    rightPartition.position.set(3, 1.4, 2).add(this.roomOffset);
-    this.group.add(rightPartition);
+    const rightPartition = BABYLON.MeshBuilder.CreateBox('rightPartition', {
+      width: 0.2,
+      height: 2.8,
+      depth: 4
+    }, this.scene);
+    rightPartition.material = partitionMaterial;
+    rightPartition.position = new BABYLON.Vector3(3, 1.4, 2).add(this.roomOffset);
+    rightPartition.parent = this.group;
+    if (this.shadowGenerator) {
+      this.shadowGenerator.addShadowCaster(rightPartition);
+    }
+    rightPartition.receiveShadows = true;
   }
 
   createWindow() {
@@ -60,47 +71,47 @@ export class Room1 extends BaseRoom {
     const windowFrame = this.createBox(
       0.1, 2, 2.5,
       0x8b7355,
-      new THREE.Vector3(-5.9, 1.2, 0).add(this.roomOffset)
+      new BABYLON.Vector3(-5.9, 1.2, 0).add(this.roomOffset)
     );
-    this.group.add(windowFrame);
+    windowFrame.parent = this.group;
 
     // Window glass with transparency
-    const windowGlass = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.3, 1.8),
-      new THREE.MeshStandardMaterial({
-        color: 0x87ceeb,
-        transparent: true,
-        opacity: 0.3,
-        roughness: 0.1,
-        metalness: 0.9
-      })
-    );
+    const windowGlass = BABYLON.MeshBuilder.CreatePlane('windowGlass', {
+      width: 2.3,
+      height: 1.8
+    }, this.scene);
+    const windowGlassMaterial = new BABYLON.StandardMaterial('windowGlassMaterial', this.scene);
+    windowGlassMaterial.diffuseColor = BABYLON.Color3.FromHexString('#87ceeb');
+    windowGlassMaterial.alpha = 0.3;
+    windowGlassMaterial.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+    windowGlass.material = windowGlassMaterial;
     windowGlass.rotation.y = Math.PI / 2;
-    windowGlass.position.set(-5.85, 1.2, 0).add(this.roomOffset);
-    this.group.add(windowGlass);
+    windowGlass.position = new BABYLON.Vector3(-5.85, 1.2, 0).add(this.roomOffset);
+    windowGlass.parent = this.group;
 
     // Curtains (using planes with soft material)
-    const curtainMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfaf0e6,
-      roughness: 0.9,
-      side: THREE.DoubleSide
-    });
+    const curtainMaterial = new BABYLON.StandardMaterial('curtainMaterial', this.scene);
+    curtainMaterial.diffuseColor = BABYLON.Color3.FromHexString('#faf0e6');
+    curtainMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    curtainMaterial.backFaceCulling = false;
 
-    const leftCurtain = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.6, 2),
-      curtainMaterial
-    );
+    const leftCurtain = BABYLON.MeshBuilder.CreatePlane('leftCurtain', {
+      width: 0.6,
+      height: 2
+    }, this.scene);
+    leftCurtain.material = curtainMaterial;
     leftCurtain.rotation.y = Math.PI / 2;
-    leftCurtain.position.set(-5.75, 1.2, -1).add(this.roomOffset);
-    this.group.add(leftCurtain);
+    leftCurtain.position = new BABYLON.Vector3(-5.75, 1.2, -1).add(this.roomOffset);
+    leftCurtain.parent = this.group;
 
-    const rightCurtain = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.6, 2),
-      curtainMaterial
-    );
+    const rightCurtain = BABYLON.MeshBuilder.CreatePlane('rightCurtain', {
+      width: 0.6,
+      height: 2
+    }, this.scene);
+    rightCurtain.material = curtainMaterial;
     rightCurtain.rotation.y = Math.PI / 2;
-    rightCurtain.position.set(-5.75, 1.2, 1).add(this.roomOffset);
-    this.group.add(rightCurtain);
+    rightCurtain.position = new BABYLON.Vector3(-5.75, 1.2, 1).add(this.roomOffset);
+    rightCurtain.parent = this.group;
 
     // Animate curtains gently
     this.curtains = { left: leftCurtain, right: rightCurtain };
@@ -111,9 +122,9 @@ export class Room1 extends BaseRoom {
     const doorFrame = this.createBox(
       0.1, 2.2, 1.2,
       0x8b7355,
-      new THREE.Vector3(5.9, 1.1, 3).add(this.roomOffset)
+      new BABYLON.Vector3(5.9, 1.1, 3).add(this.roomOffset)
     );
-    this.group.add(doorFrame);
+    doorFrame.parent = this.group;
   }
 
   createFurniture() {
@@ -121,52 +132,58 @@ export class Room1 extends BaseRoom {
     const tableTop = this.createBox(
       2.5, 0.1, 1.2,
       0x8b4513,
-      new THREE.Vector3(0, 0.8, -2).add(this.roomOffset)
+      new BABYLON.Vector3(0, 0.8, -2).add(this.roomOffset)
     );
-    this.group.add(tableTop);
+    tableTop.parent = this.group;
 
-    const tableLeg1 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new THREE.Vector3(-1.15, 0.4, -2.5).add(this.roomOffset));
-    const tableLeg2 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new THREE.Vector3(-1.15, 0.4, -1.5).add(this.roomOffset));
-    const tableLeg3 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new THREE.Vector3(1.15, 0.4, -2.5).add(this.roomOffset));
-    const tableLeg4 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new THREE.Vector3(1.15, 0.4, -1.5).add(this.roomOffset));
-    this.group.add(tableLeg1, tableLeg2, tableLeg3, tableLeg4);
+    const tableLeg1 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -2.5).add(this.roomOffset));
+    const tableLeg2 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -1.5).add(this.roomOffset));
+    const tableLeg3 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -2.5).add(this.roomOffset));
+    const tableLeg4 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -1.5).add(this.roomOffset));
+    tableLeg1.parent = this.group;
+    tableLeg2.parent = this.group;
+    tableLeg3.parent = this.group;
+    tableLeg4.parent = this.group;
 
     // Chairs around table - closer together
-    this.createChair(new THREE.Vector3(0, 0, -3.2).add(this.roomOffset), 0);
-    this.createChair(new THREE.Vector3(-2, 0, -2).add(this.roomOffset), Math.PI / 2);
-    this.createChair(new THREE.Vector3(2, 0, -2).add(this.roomOffset), -Math.PI / 2);
+    this.createChair(new BABYLON.Vector3(0, 0, -3.2).add(this.roomOffset), 0);
+    this.createChair(new BABYLON.Vector3(-2, 0, -2).add(this.roomOffset), Math.PI / 2);
+    this.createChair(new BABYLON.Vector3(2, 0, -2).add(this.roomOffset), -Math.PI / 2);
 
     // Old bicycle in corner
-    this.createBicycle(new THREE.Vector3(4, 0, -3.5).add(this.roomOffset));
+    this.createBicycle(new BABYLON.Vector3(4, 0, -3.5).add(this.roomOffset));
 
     // Floral plates on table
     this.createPlates();
 
     // Small cabinet
-    this.createCabinet(new THREE.Vector3(4.5, 0, 2).add(this.roomOffset));
+    this.createCabinet(new BABYLON.Vector3(4.5, 0, 2).add(this.roomOffset));
   }
 
   createChair(position, rotation) {
-    const chair = new THREE.Group();
+    const chair = new BABYLON.TransformNode('chair', this.scene);
 
     // Seat
-    const seat = this.createBox(0.5, 0.05, 0.5, 0x8b4513, new THREE.Vector3(0, 0.5, 0));
-    chair.add(seat);
+    const seat = this.createBox(0.5, 0.05, 0.5, 0x8b4513, new BABYLON.Vector3(0, 0.5, 0));
+    seat.parent = chair;
 
     // Backrest
-    const backrest = this.createBox(0.5, 0.6, 0.05, 0x8b4513, new THREE.Vector3(0, 0.8, -0.225));
-    chair.add(backrest);
+    const backrest = this.createBox(0.5, 0.6, 0.05, 0x8b4513, new BABYLON.Vector3(0, 0.8, -0.225));
+    backrest.parent = chair;
 
     // Legs
-    const leg1 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new THREE.Vector3(-0.2, 0.25, -0.2));
-    const leg2 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new THREE.Vector3(0.2, 0.25, -0.2));
-    const leg3 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new THREE.Vector3(-0.2, 0.25, 0.2));
-    const leg4 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new THREE.Vector3(0.2, 0.25, 0.2));
-    chair.add(leg1, leg2, leg3, leg4);
+    const leg1 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, -0.2));
+    const leg2 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, -0.2));
+    const leg3 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, 0.2));
+    const leg4 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, 0.2));
+    leg1.parent = chair;
+    leg2.parent = chair;
+    leg3.parent = chair;
+    leg4.parent = chair;
 
-    chair.position.copy(position);
+    chair.position = position;
     chair.rotation.y = rotation;
-    this.group.add(chair);
+    chair.parent = this.group;
 
     // Make chair interactive
     this.addInteractiveObject(chair, () => {
@@ -175,33 +192,38 @@ export class Room1 extends BaseRoom {
   }
 
   createBicycle(position) {
-    const bicycle = new THREE.Group();
+    const bicycle = new BABYLON.TransformNode('bicycle', this.scene);
 
     // Simplified bicycle representation
-    const frame = this.createBox(0.05, 0.8, 1.2, 0xff6347, new THREE.Vector3(0, 0.6, 0));
-    bicycle.add(frame);
+    const frame = this.createBox(0.05, 0.8, 1.2, 0xff6347, new BABYLON.Vector3(0, 0.6, 0));
+    frame.parent = bicycle;
 
     // Wheels
-    const frontWheel = new THREE.Mesh(
-      new THREE.TorusGeometry(0.35, 0.05, 16, 32),
-      new THREE.MeshStandardMaterial({ color: 0x333333 })
-    );
+    const frontWheel = BABYLON.MeshBuilder.CreateTorus('frontWheel', {
+      diameter: 0.35 * 2,
+      thickness: 0.05,
+      tessellation: 16
+    }, this.scene);
+    const wheelMaterial = new BABYLON.StandardMaterial('wheelMaterial', this.scene);
+    wheelMaterial.diffuseColor = BABYLON.Color3.FromHexString('#333333');
+    wheelMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+    frontWheel.material = wheelMaterial;
     frontWheel.rotation.y = Math.PI / 2;
-    frontWheel.position.set(0, 0.35, -0.6);
-    bicycle.add(frontWheel);
+    frontWheel.position = new BABYLON.Vector3(0, 0.35, -0.6);
+    frontWheel.parent = bicycle;
 
-    const backWheel = frontWheel.clone();
-    backWheel.position.set(0, 0.35, 0.6);
-    bicycle.add(backWheel);
+    const backWheel = frontWheel.clone('backWheel');
+    backWheel.position = new BABYLON.Vector3(0, 0.35, 0.6);
+    backWheel.parent = bicycle;
 
     // Handlebars
-    const handlebar = this.createCylinder(0.02, 0.02, 0.5, 0x333333, new THREE.Vector3(0, 1, -0.6));
+    const handlebar = this.createCylinder(0.02, 0.02, 0.5, 0x333333, new BABYLON.Vector3(0, 1, -0.6));
     handlebar.rotation.z = Math.PI / 2;
-    bicycle.add(handlebar);
+    handlebar.parent = bicycle;
 
-    bicycle.position.copy(position);
+    bicycle.position = position;
     bicycle.rotation.y = Math.PI / 4;
-    this.group.add(bicycle);
+    bicycle.parent = this.group;
 
     // Make bicycle interactive
     this.addInteractiveObject(bicycle, () => {
@@ -212,73 +234,105 @@ export class Room1 extends BaseRoom {
   createPlates() {
     // Floral plates on the table - adjusted for smaller table
     for (let i = 0; i < 3; i++) {
-      const plate = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.15, 0.15, 0.02, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          roughness: 0.3,
-          metalness: 0.1
-        })
-      );
-      plate.position.set(-1 + i * 1, 0.86, -2).add(this.roomOffset);
-      this.group.add(plate);
+      const plate = BABYLON.MeshBuilder.CreateCylinder('plate', {
+        diameterTop: 0.15 * 2,
+        diameterBottom: 0.15 * 2,
+        height: 0.02,
+        tessellation: 16
+      }, this.scene);
+      const plateMaterial = new BABYLON.StandardMaterial('plateMaterial', this.scene);
+      plateMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ffffff');
+      plateMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+      plate.material = plateMaterial;
+      plate.position = new BABYLON.Vector3(-1 + i * 1, 0.86, -2).add(this.roomOffset);
+      plate.parent = this.group;
 
       // Add floral pattern (simplified as colored circles)
-      const pattern = new THREE.Mesh(
-        new THREE.CircleGeometry(0.08, 16),
-        new THREE.MeshStandardMaterial({ color: 0xff69b4 })
-      );
+      const pattern = BABYLON.MeshBuilder.CreateCylinder('pattern', {
+        diameterTop: 0.08 * 2,
+        diameterBottom: 0.08 * 2,
+        height: 0.01,
+        tessellation: 16
+      }, this.scene);
+      const patternMaterial = new BABYLON.StandardMaterial('patternMaterial', this.scene);
+      patternMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ff69b4');
+      pattern.material = patternMaterial;
       pattern.rotation.x = -Math.PI / 2;
-      pattern.position.set(-1 + i * 1, 0.87, -2).add(this.roomOffset);
-      this.group.add(pattern);
+      pattern.position = new BABYLON.Vector3(-1 + i * 1, 0.87, -2).add(this.roomOffset);
+      pattern.parent = this.group;
     }
   }
 
   createCabinet(position) {
     // Simple cabinet
-    const cabinet = this.createBox(1.5, 1.5, 0.5, 0x8b4513, position.clone().add(new THREE.Vector3(0, 0.75, 0)));
-    this.group.add(cabinet);
+    const cabinetPos = new BABYLON.Vector3(position.x, position.y + 0.75, position.z);
+    const cabinet = this.createBox(1.5, 1.5, 0.5, 0x8b4513, cabinetPos);
+    cabinet.parent = this.group;
 
     // Cabinet doors (visual detail)
-    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
-    const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.4, 0.02), doorMaterial);
-    leftDoor.position.set(position.x - 0.38, position.y + 0.75, position.z + 0.26);
-    this.group.add(leftDoor);
+    const doorMaterial = new BABYLON.StandardMaterial('doorMaterial', this.scene);
+    doorMaterial.diffuseColor = BABYLON.Color3.FromHexString('#654321');
+    doorMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-    const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.4, 0.02), doorMaterial);
-    rightDoor.position.set(position.x + 0.38, position.y + 0.75, position.z + 0.26);
-    this.group.add(rightDoor);
+    const leftDoor = BABYLON.MeshBuilder.CreateBox('leftDoor', {
+      width: 0.7,
+      height: 1.4,
+      depth: 0.02
+    }, this.scene);
+    leftDoor.material = doorMaterial;
+    leftDoor.position = new BABYLON.Vector3(position.x - 0.38, position.y + 0.75, position.z + 0.26);
+    leftDoor.parent = this.group;
+
+    const rightDoor = BABYLON.MeshBuilder.CreateBox('rightDoor', {
+      width: 0.7,
+      height: 1.4,
+      depth: 0.02
+    }, this.scene);
+    rightDoor.material = doorMaterial;
+    rightDoor.position = new BABYLON.Vector3(position.x + 0.38, position.y + 0.75, position.z + 0.26);
+    rightDoor.parent = this.group;
   }
 
   createLighting() {
     // Warm golden sunlight through window
-    const sunlight = new THREE.PointLight(0xffd700, 2, 10);
-    sunlight.position.set(-7, 2.5, 0).add(this.roomOffset);
-    sunlight.castShadow = true;
-    this.group.add(sunlight);
+    const sunlight = new BABYLON.PointLight('sunlight',
+      new BABYLON.Vector3(-7, 2.5, 0).add(this.roomOffset),
+      this.scene);
+    sunlight.intensity = 2;
+    sunlight.diffuse = BABYLON.Color3.FromHexString('#ffd700');
+    sunlight.parent = this.group;
 
     // Warm ambient light for nostalgic feel
-    const ambientLight = new THREE.AmbientLight(0xfff8dc, 0.6);
-    this.group.add(ambientLight);
+    const ambientLight = new BABYLON.HemisphericLight('ambientLight',
+      new BABYLON.Vector3(0, 1, 0),
+      this.scene);
+    ambientLight.intensity = 0.6;
+    ambientLight.diffuse = BABYLON.Color3.FromHexString('#fff8dc');
+    ambientLight.parent = this.group;
 
     // Ceiling lamp - lowered for lower ceiling
-    const ceilingLamp = new THREE.PointLight(0xffe4b5, 1.2, 10);
-    ceilingLamp.position.set(0, 2.6, 0).add(this.roomOffset);
-    this.group.add(ceilingLamp);
+    const ceilingLamp = new BABYLON.PointLight('ceilingLamp',
+      new BABYLON.Vector3(0, 2.6, 0).add(this.roomOffset),
+      this.scene);
+    ceilingLamp.intensity = 1.2;
+    ceilingLamp.diffuse = BABYLON.Color3.FromHexString('#ffe4b5');
+    ceilingLamp.parent = this.group;
 
     // Lamp shade (visual)
-    const lampShade = new THREE.Mesh(
-      new THREE.ConeGeometry(0.4, 0.5, 16),
-      new THREE.MeshStandardMaterial({
-        color: 0xfaf0e6,
-        emissive: 0xffe4b5,
-        emissiveIntensity: 0.3,
-        side: THREE.DoubleSide
-      })
-    );
-    lampShade.position.set(0, 2.7, 0).add(this.roomOffset);
+    const lampShade = BABYLON.MeshBuilder.CreateCylinder('lampShade', {
+      diameterTop: 0.4 * 2,
+      diameterBottom: 0.5 * 2,
+      height: 0.5,
+      tessellation: 16
+    }, this.scene);
+    const lampShadeMaterial = new BABYLON.StandardMaterial('lampShadeMaterial', this.scene);
+    lampShadeMaterial.diffuseColor = BABYLON.Color3.FromHexString('#faf0e6');
+    lampShadeMaterial.emissiveColor = BABYLON.Color3.FromHexString('#ffe4b5').scale(0.3);
+    lampShadeMaterial.backFaceCulling = false;
+    lampShade.material = lampShadeMaterial;
+    lampShade.position = new BABYLON.Vector3(0, 2.7, 0).add(this.roomOffset);
     lampShade.rotation.x = Math.PI;
-    this.group.add(lampShade);
+    lampShade.parent = this.group;
   }
 
   addInteractions() {
@@ -324,8 +378,8 @@ export class Room1 extends BaseRoom {
 
     // Gently sway curtains
     if (this.curtains) {
-      this.curtains.left.position.x = -9.75 + Math.sin(this.animationTime * 0.5) * 0.05;
-      this.curtains.right.position.x = -9.75 + Math.sin(this.animationTime * 0.5 + Math.PI) * 0.05;
+      this.curtains.left.position.x = -5.75 + Math.sin(this.animationTime * 0.5) * 0.05;
+      this.curtains.right.position.x = -5.75 + Math.sin(this.animationTime * 0.5 + Math.PI) * 0.05;
     }
   }
 }

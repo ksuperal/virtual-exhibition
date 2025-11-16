@@ -1,10 +1,10 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room5 extends BaseRoom {
-  constructor(scene, interactionManager, audioManager) {
-    super(scene, interactionManager, audioManager);
-    this.roomOffset = new THREE.Vector3(120, 0, 0);
+  constructor(scene, interactionManager, audioManager, shadowGenerator) {
+    super(scene, interactionManager, audioManager, shadowGenerator);
+    this.roomOffset = new BABYLON.Vector3(120, 0, 0);
     this.postcards = [];
     this.communityMessages = [];
   }
@@ -22,56 +22,74 @@ export class Room5 extends BaseRoom {
   createRoomStructure() {
     // ENCLOSED: Cozy intimate space with lower ceiling
     const walls = this.createWalls(14, 3, 12, 0xfaf0e6);
-    walls.position.copy(this.roomOffset);
-    this.group.add(walls);
+    walls.position = this.roomOffset;
+    walls.parent = this.group;
 
     // Wooden floor
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(14, 12),
-      new THREE.MeshStandardMaterial({
-        color: 0xd2691e,
-        roughness: 0.9,
-        metalness: 0.1
-      })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.copy(this.roomOffset);
+    const floor = BABYLON.MeshBuilder.CreateGround('floor', {
+      width: 14,
+      height: 12
+    }, this.scene);
+
+    const floorMaterial = new BABYLON.StandardMaterial('floorMaterial', this.scene);
+    floorMaterial.diffuseColor = BABYLON.Color3.FromHexString('#d2691e');
+    floorMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    floor.material = floorMaterial;
+
+    floor.position = this.roomOffset.clone();
     floor.position.y = 0.01;
-    floor.receiveShadow = true;
-    this.group.add(floor);
+    floor.receiveShadows = true;
+    floor.parent = this.group;
 
     // Add room dividers for cozy nooks
     this.createRoomDividers();
   }
 
   createRoomDividers() {
-    const dividerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xdeb887,
-      roughness: 0.8
-    });
+    const dividerMaterial = new BABYLON.StandardMaterial('dividerMaterial', this.scene);
+    dividerMaterial.diffuseColor = BABYLON.Color3.FromHexString('#deb887');
+    dividerMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
     // Create low divider walls for intimate dining nooks
-    const divider1 = new THREE.Mesh(
-      new THREE.BoxGeometry(6, 2, 0.2),
-      dividerMaterial
-    );
-    divider1.position.set(0, 1, -3).add(this.roomOffset);
-    this.group.add(divider1);
+    const divider1 = BABYLON.MeshBuilder.CreateBox('divider1', {
+      width: 6,
+      height: 2,
+      depth: 0.2
+    }, this.scene);
+    divider1.material = dividerMaterial;
+    divider1.position = new BABYLON.Vector3(0, 1, -3).add(this.roomOffset);
+    divider1.parent = this.group;
+    if (this.shadowGenerator) {
+      this.shadowGenerator.addShadowCaster(divider1);
+    }
+    divider1.receiveShadows = true;
 
     // Side dividers
-    const sideDivider1 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2, 3),
-      dividerMaterial
-    );
-    sideDivider1.position.set(-5, 1, 3).add(this.roomOffset);
-    this.group.add(sideDivider1);
+    const sideDivider1 = BABYLON.MeshBuilder.CreateBox('sideDivider1', {
+      width: 0.2,
+      height: 2,
+      depth: 3
+    }, this.scene);
+    sideDivider1.material = dividerMaterial;
+    sideDivider1.position = new BABYLON.Vector3(-5, 1, 3).add(this.roomOffset);
+    sideDivider1.parent = this.group;
+    if (this.shadowGenerator) {
+      this.shadowGenerator.addShadowCaster(sideDivider1);
+    }
+    sideDivider1.receiveShadows = true;
 
-    const sideDivider2 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2, 3),
-      dividerMaterial
-    );
-    sideDivider2.position.set(5, 1, 3).add(this.roomOffset);
-    this.group.add(sideDivider2);
+    const sideDivider2 = BABYLON.MeshBuilder.CreateBox('sideDivider2', {
+      width: 0.2,
+      height: 2,
+      depth: 3
+    }, this.scene);
+    sideDivider2.material = dividerMaterial;
+    sideDivider2.position = new BABYLON.Vector3(5, 1, 3).add(this.roomOffset);
+    sideDivider2.parent = this.group;
+    if (this.shadowGenerator) {
+      this.shadowGenerator.addShadowCaster(sideDivider2);
+    }
+    sideDivider2.receiveShadows = true;
   }
 
   createDiningTable() {
@@ -84,21 +102,21 @@ export class Room5 extends BaseRoom {
     const tableTop = this.createBox(
       tableLength, 0.1, tableWidth,
       0x8b4513,
-      new THREE.Vector3(0, tableHeight, 0).add(this.roomOffset)
+      new BABYLON.Vector3(0, tableHeight, 0).add(this.roomOffset)
     );
-    this.group.add(tableTop);
+    tableTop.parent = this.group;
 
     // Table legs
     const legPositions = [
-      new THREE.Vector3(-tableLength / 2 + 0.5, tableHeight / 2, -tableWidth / 2 + 0.3),
-      new THREE.Vector3(-tableLength / 2 + 0.5, tableHeight / 2, tableWidth / 2 - 0.3),
-      new THREE.Vector3(tableLength / 2 - 0.5, tableHeight / 2, -tableWidth / 2 + 0.3),
-      new THREE.Vector3(tableLength / 2 - 0.5, tableHeight / 2, tableWidth / 2 - 0.3)
+      new BABYLON.Vector3(-tableLength / 2 + 0.5, tableHeight / 2, -tableWidth / 2 + 0.3),
+      new BABYLON.Vector3(-tableLength / 2 + 0.5, tableHeight / 2, tableWidth / 2 - 0.3),
+      new BABYLON.Vector3(tableLength / 2 - 0.5, tableHeight / 2, -tableWidth / 2 + 0.3),
+      new BABYLON.Vector3(tableLength / 2 - 0.5, tableHeight / 2, tableWidth / 2 - 0.3)
     ];
 
     legPositions.forEach(pos => {
       const leg = this.createCylinder(0.08, 0.08, tableHeight, 0x654321, pos.add(this.roomOffset));
-      this.group.add(leg);
+      leg.parent = this.group;
     });
 
     // Add dining items on table
@@ -115,40 +133,47 @@ export class Room5 extends BaseRoom {
       const z = (i % 2 === 0) ? -0.6 : 0.6;
 
       // Tea cup
-      const cup = new THREE.Group();
+      const cup = new BABYLON.TransformNode('cup', this.scene);
 
-      const cupBody = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.06, 0.12, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          roughness: 0.3
-        })
-      );
-      cup.add(cupBody);
+      const cupBody = BABYLON.MeshBuilder.CreateCylinder('cupBody', {
+        diameterTop: 0.08 * 2,
+        diameterBottom: 0.06 * 2,
+        height: 0.12,
+        tessellation: 16
+      }, this.scene);
+      const cupMaterial = new BABYLON.StandardMaterial('cupMaterial', this.scene);
+      cupMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ffffff');
+      cupMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+      cupBody.material = cupMaterial;
+      cupBody.parent = cup;
 
       // Handle
-      const handleGeometry = new THREE.TorusGeometry(0.05, 0.01, 8, 16, Math.PI);
-      const handle = new THREE.Mesh(
-        handleGeometry,
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
-      );
+      const handle = BABYLON.MeshBuilder.CreateTorus('handle', {
+        diameter: 0.05 * 2,
+        thickness: 0.01,
+        tessellation: 16
+      }, this.scene);
+      handle.material = cupMaterial;
       handle.rotation.y = Math.PI / 2;
-      handle.position.set(0.08, 0, 0);
-      cup.add(handle);
+      handle.position = new BABYLON.Vector3(0.08, 0, 0);
+      handle.parent = cup;
 
-      cup.position.set(x, 0.92, z).add(this.roomOffset);
-      this.group.add(cup);
+      cup.position = new BABYLON.Vector3(x, 0.92, z).add(this.roomOffset);
+      cup.parent = this.group;
 
       // Small plate
-      const plate = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12, 0.12, 0.02, 32),
-        new THREE.MeshStandardMaterial({
-          color: 0xf5f5dc,
-          roughness: 0.4
-        })
-      );
-      plate.position.set(x, 0.86, z - 0.3).add(this.roomOffset);
-      this.group.add(plate);
+      const plate = BABYLON.MeshBuilder.CreateCylinder('plate', {
+        diameterTop: 0.12 * 2,
+        diameterBottom: 0.12 * 2,
+        height: 0.02,
+        tessellation: 32
+      }, this.scene);
+      const plateMaterial = new BABYLON.StandardMaterial('plateMaterial', this.scene);
+      plateMaterial.diffuseColor = BABYLON.Color3.FromHexString('#f5f5dc');
+      plateMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+      plate.material = plateMaterial;
+      plate.position = new BABYLON.Vector3(x, 0.86, z - 0.3).add(this.roomOffset);
+      plate.parent = this.group;
     }
 
     // Central candles
@@ -157,9 +182,9 @@ export class Room5 extends BaseRoom {
 
   createCandles() {
     const candlePositions = [
-      new THREE.Vector3(-1, 0.85, 0),
-      new THREE.Vector3(0, 0.85, 0),
-      new THREE.Vector3(1, 0.85, 0)
+      new BABYLON.Vector3(-1, 0.85, 0),
+      new BABYLON.Vector3(0, 0.85, 0),
+      new BABYLON.Vector3(1, 0.85, 0)
     ];
 
     candlePositions.forEach(pos => {
@@ -167,25 +192,28 @@ export class Room5 extends BaseRoom {
       const candle = this.createCylinder(
         0.05, 0.05, 0.3,
         0xfffacd,
-        pos.clone().add(new THREE.Vector3(0, 0.15, 0)).add(this.roomOffset)
+        pos.clone().add(new BABYLON.Vector3(0, 0.15, 0)).add(this.roomOffset)
       );
-      this.group.add(candle);
+      candle.parent = this.group;
 
       // Flame (glow)
-      const flameGeometry = new THREE.SphereGeometry(0.04, 16, 16);
-      const flameMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffa500,
-        emissive: 0xff6600,
-        emissiveIntensity: 1
-      });
-      const flame = new THREE.Mesh(flameGeometry, flameMaterial);
-      flame.position.copy(pos).add(new THREE.Vector3(0, 0.35, 0)).add(this.roomOffset);
-      this.group.add(flame);
+      const flame = BABYLON.MeshBuilder.CreateSphere('flame', {
+        diameter: 0.04 * 2,
+        segments: 16
+      }, this.scene);
+      const flameMaterial = new BABYLON.StandardMaterial('flameMaterial', this.scene);
+      flameMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ffa500');
+      flameMaterial.emissiveColor = BABYLON.Color3.FromHexString('#ff6600');
+      flame.material = flameMaterial;
+      flame.position = pos.clone().add(new BABYLON.Vector3(0, 0.35, 0)).add(this.roomOffset);
+      flame.parent = this.group;
 
       // Flame light
-      const flameLight = new THREE.PointLight(0xffa500, 0.8, 5);
-      flameLight.position.copy(flame.position);
-      this.group.add(flameLight);
+      const flameLight = new BABYLON.PointLight('flameLight', flame.position, this.scene);
+      flameLight.intensity = 0.8;
+      flameLight.range = 5;
+      flameLight.diffuse = BABYLON.Color3.FromHexString('#ffa500');
+      flameLight.parent = this.group;
 
       // Store for animation
       if (!this.candles) this.candles = [];
@@ -200,26 +228,30 @@ export class Room5 extends BaseRoom {
 
   createCommunityWall() {
     // Wall covered with messages - adjusted for lower ceiling
-    const wallPosition = new THREE.Vector3(0, 1.5, -5.9).add(this.roomOffset);
+    const wallPosition = new BABYLON.Vector3(0, 1.5, -5.9).add(this.roomOffset);
 
-    this.communityWallMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(12, 2.5),
-      new THREE.MeshStandardMaterial({
-        color: 0xf5deb3,
-        roughness: 0.8
-      })
-    );
-    this.communityWallMesh.position.copy(wallPosition);
-    this.group.add(this.communityWallMesh);
+    this.communityWallMesh = BABYLON.MeshBuilder.CreatePlane('communityWall', {
+      width: 12,
+      height: 2.5
+    }, this.scene);
 
-    // Create canvas for messages
-    this.wallCanvas = document.createElement('canvas');
-    this.wallCanvas.width = 2048;
-    this.wallCanvas.height = 1024;
-    this.wallContext = this.wallCanvas.getContext('2d');
+    const wallMaterial = new BABYLON.StandardMaterial('wallMaterial', this.scene);
+    wallMaterial.diffuseColor = BABYLON.Color3.FromHexString('#f5deb3');
+    wallMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    this.communityWallMesh.material = wallMaterial;
 
-    this.wallTexture = new THREE.CanvasTexture(this.wallCanvas);
-    this.communityWallMesh.material.map = this.wallTexture;
+    this.communityWallMesh.position = wallPosition;
+    this.communityWallMesh.parent = this.group;
+
+    // Create DynamicTexture for messages
+    this.wallTexture = new BABYLON.DynamicTexture('wallTexture', 2048, this.scene);
+    this.wallTexture.getContext().canvas.width = 2048;
+    this.wallTexture.getContext().canvas.height = 1024;
+    this.wallCanvas = this.wallTexture.getContext().canvas;
+    this.wallContext = this.wallTexture.getContext();
+
+    wallMaterial.emissiveTexture = this.wallTexture;
+    wallMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
 
     // Add title
     this.drawWallTitle();
@@ -307,7 +339,7 @@ export class Room5 extends BaseRoom {
       ctx.fillText(line, x + 10, lineY);
     });
 
-    this.wallTexture.needsUpdate = true;
+    this.wallTexture.update();
   }
 
   onWallInteraction() {
@@ -336,45 +368,49 @@ export class Room5 extends BaseRoom {
   }
 
   createFloatingMessage(text) {
-    // Create constellation point on projection wall
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 256;
+    // Create constellation point on projection wall using billboard plane
+    const billboardTexture = new BABYLON.DynamicTexture('messageTexture', 256, this.scene);
+    const ctx = billboardTexture.getContext();
 
     // Draw star/light
-    const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
     gradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.5)');
     gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
 
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    billboardTexture.update();
 
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      blending: THREE.AdditiveBlending
-    });
+    // Create billboard plane instead of sprite
+    const billboard = BABYLON.MeshBuilder.CreatePlane('messageBillboard', {
+      width: 0.3,
+      height: 0.3
+    }, this.scene);
 
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.position.set(
+    const billboardMaterial = new BABYLON.StandardMaterial('billboardMaterial', this.scene);
+    billboardMaterial.emissiveTexture = billboardTexture;
+    billboardMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    billboardMaterial.alphaMode = BABYLON.Engine.ALPHA_ADD;
+    billboard.material = billboardMaterial;
+
+    billboard.position = new BABYLON.Vector3(
       (Math.random() - 0.5) * 15,
       2 + Math.random() * 2,
       -7 + Math.random() * 2
     ).add(this.roomOffset);
 
-    sprite.scale.set(0.3, 0.3, 1);
+    billboard.parent = this.group;
 
-    this.group.add(sprite);
+    // Make billboard face camera always
+    billboard.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
 
     // Fade in
-    sprite.material.opacity = 0;
+    billboardMaterial.alpha = 0;
     const startTime = Date.now();
     const fadeIn = () => {
       const elapsed = Date.now() - startTime;
-      sprite.material.opacity = Math.min(elapsed / 1000, 1);
+      billboardMaterial.alpha = Math.min(elapsed / 1000, 1);
 
       if (elapsed < 1000) {
         requestAnimationFrame(fadeIn);
@@ -388,31 +424,31 @@ export class Room5 extends BaseRoom {
     const stationTable = this.createBox(
       1.5, 0.8, 1,
       0x8b4513,
-      new THREE.Vector3(5, 0.4, 4).add(this.roomOffset)
+      new BABYLON.Vector3(5, 0.4, 4).add(this.roomOffset)
     );
-    this.group.add(stationTable);
+    stationTable.parent = this.group;
 
     // Postcards stack
     const postcardStack = this.createBox(
       0.3, 0.05, 0.4,
       0xfff8dc,
-      new THREE.Vector3(5, 0.85, 4).add(this.roomOffset)
+      new BABYLON.Vector3(5, 0.85, 4).add(this.roomOffset)
     );
-    this.group.add(postcardStack);
+    postcardStack.parent = this.group;
 
     // Pen
     const pen = this.createCylinder(
       0.01, 0.01, 0.15,
       0x4169e1,
-      new THREE.Vector3(5.3, 0.85, 4).add(this.roomOffset)
+      new BABYLON.Vector3(5.3, 0.85, 4).add(this.roomOffset)
     );
     pen.rotation.z = Math.PI / 2;
-    this.group.add(pen);
+    pen.parent = this.group;
 
     // Sign
     this.createTableSign(
       'Write a postcard to your future self',
-      new THREE.Vector3(5, 1.3, 3.5).add(this.roomOffset)
+      new BABYLON.Vector3(5, 1.3, 3.5).add(this.roomOffset)
     );
 
     // Make interactive
@@ -423,7 +459,7 @@ export class Room5 extends BaseRoom {
 
   createTableSign(text, position) {
     const signBoard = this.createBox(1.2, 0.3, 0.05, 0xf5deb3, position);
-    this.group.add(signBoard);
+    signBoard.parent = this.group;
   }
 
   onPostcardInteraction() {
@@ -475,8 +511,8 @@ export class Room5 extends BaseRoom {
 
   createCozyDecor() {
     // Plants - closer to walls
-    this.createPlant(new THREE.Vector3(-6, 0, -5).add(this.roomOffset));
-    this.createPlant(new THREE.Vector3(6, 0, -5).add(this.roomOffset));
+    this.createPlant(new BABYLON.Vector3(-6, 0, -5).add(this.roomOffset));
+    this.createPlant(new BABYLON.Vector3(6, 0, -5).add(this.roomOffset));
 
     // Warm fabrics/cushions
     this.createCushions();
@@ -487,36 +523,40 @@ export class Room5 extends BaseRoom {
 
   createPlant(position) {
     // Pot
-    const pot = this.createCylinder(0.25, 0.2, 0.3, 0x8b4513, position.clone().add(new THREE.Vector3(0, 0.15, 0)));
-    this.group.add(pot);
+    const pot = this.createCylinder(0.25, 0.2, 0.3, 0x8b4513, position.clone().add(new BABYLON.Vector3(0, 0.15, 0)));
+    pot.parent = this.group;
 
     // Leaves (simplified)
     for (let i = 0; i < 5; i++) {
-      const leaf = new THREE.Mesh(
-        new THREE.SphereGeometry(0.1, 8, 8),
-        new THREE.MeshStandardMaterial({ color: 0x228b22 })
-      );
+      const leaf = BABYLON.MeshBuilder.CreateSphere('leaf', {
+        diameter: 0.1 * 2,
+        segments: 8
+      }, this.scene);
+      const leafMaterial = new BABYLON.StandardMaterial('leafMaterial', this.scene);
+      leafMaterial.diffuseColor = BABYLON.Color3.FromHexString('#228b22');
+      leaf.material = leafMaterial;
+
       const angle = (i / 5) * Math.PI * 2;
-      leaf.position.set(
+      leaf.position = new BABYLON.Vector3(
         position.x + Math.cos(angle) * 0.15,
         position.y + 0.4 + Math.random() * 0.2,
         position.z + Math.sin(angle) * 0.15
       );
-      this.group.add(leaf);
+      leaf.parent = this.group;
     }
   }
 
   createCushions() {
     // Cushions along the sides of the table
     const cushionPositions = [
-      new THREE.Vector3(-4, 0.2, -2.5),
-      new THREE.Vector3(-2, 0.2, -2.5),
-      new THREE.Vector3(2, 0.2, -2.5),
-      new THREE.Vector3(4, 0.2, -2.5),
-      new THREE.Vector3(-4, 0.2, 2.5),
-      new THREE.Vector3(-2, 0.2, 2.5),
-      new THREE.Vector3(2, 0.2, 2.5),
-      new THREE.Vector3(4, 0.2, 2.5)
+      new BABYLON.Vector3(-4, 0.2, -2.5),
+      new BABYLON.Vector3(-2, 0.2, -2.5),
+      new BABYLON.Vector3(2, 0.2, -2.5),
+      new BABYLON.Vector3(4, 0.2, -2.5),
+      new BABYLON.Vector3(-4, 0.2, 2.5),
+      new BABYLON.Vector3(-2, 0.2, 2.5),
+      new BABYLON.Vector3(2, 0.2, 2.5),
+      new BABYLON.Vector3(4, 0.2, 2.5)
     ];
 
     const colors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3];
@@ -527,7 +567,7 @@ export class Room5 extends BaseRoom {
         colors[index % colors.length],
         pos.clone().add(this.roomOffset)
       );
-      this.group.add(cushion);
+      cushion.parent = this.group;
     });
   }
 
@@ -540,37 +580,58 @@ export class Room5 extends BaseRoom {
       const bulb = this.createSphere(
         0.08,
         0xfff8dc,
-        new THREE.Vector3(x, 4, 0).add(this.roomOffset)
+        new BABYLON.Vector3(x, 4, 0).add(this.roomOffset)
       );
-      bulb.material.emissive = new THREE.Color(0xffd700);
-      bulb.material.emissiveIntensity = 0.5;
-      this.group.add(bulb);
+      bulb.material.emissiveColor = BABYLON.Color3.FromHexString('#ffd700');
+      bulb.parent = this.group;
 
-      const light = new THREE.PointLight(0xffd700, 0.4, 4);
-      light.position.set(x, 4, 0).add(this.roomOffset);
-      this.group.add(light);
+      const light = new BABYLON.PointLight('hangingLight',
+        new BABYLON.Vector3(x, 4, 0).add(this.roomOffset),
+        this.scene);
+      light.intensity = 0.4;
+      light.range = 4;
+      light.diffuse = BABYLON.Color3.FromHexString('#ffd700');
+      light.parent = this.group;
     }
   }
 
   createLighting() {
     // Warm ambient light
-    const ambient = new THREE.AmbientLight(0xfff8dc, 0.7);
-    this.group.add(ambient);
+    const ambient = new BABYLON.HemisphericLight('ambientLight',
+      new BABYLON.Vector3(0, 1, 0),
+      this.scene);
+    ambient.intensity = 0.7;
+    ambient.diffuse = BABYLON.Color3.FromHexString('#fff8dc');
+    ambient.parent = this.group;
 
     // Main ceiling light (warm) - lowered for lower ceiling
-    const mainLight = new THREE.PointLight(0xffa500, 1.5, 14);
-    mainLight.position.set(0, 2.8, 0).add(this.roomOffset);
-    mainLight.castShadow = true;
-    this.group.add(mainLight);
+    const mainLight = new BABYLON.PointLight('mainLight',
+      new BABYLON.Vector3(0, 2.8, 0).add(this.roomOffset),
+      this.scene);
+    mainLight.intensity = 1.5;
+    mainLight.range = 14;
+    mainLight.diffuse = BABYLON.Color3.FromHexString('#ffa500');
+    if (this.shadowGenerator) {
+      mainLight.shadowEnabled = true;
+    }
+    mainLight.parent = this.group;
 
     // Additional warm lights
-    const light1 = new THREE.PointLight(0xffd700, 0.8, 10);
-    light1.position.set(-5, 2.5, -4).add(this.roomOffset);
-    this.group.add(light1);
+    const light1 = new BABYLON.PointLight('warmLight1',
+      new BABYLON.Vector3(-5, 2.5, -4).add(this.roomOffset),
+      this.scene);
+    light1.intensity = 0.8;
+    light1.range = 10;
+    light1.diffuse = BABYLON.Color3.FromHexString('#ffd700');
+    light1.parent = this.group;
 
-    const light2 = new THREE.PointLight(0xffd700, 0.8, 10);
-    light2.position.set(5, 2.5, -4).add(this.roomOffset);
-    this.group.add(light2);
+    const light2 = new BABYLON.PointLight('warmLight2',
+      new BABYLON.Vector3(5, 2.5, -4).add(this.roomOffset),
+      this.scene);
+    light2.intensity = 0.8;
+    light2.range = 10;
+    light2.diffuse = BABYLON.Color3.FromHexString('#ffd700');
+    light2.parent = this.group;
   }
 
   async onEnter() {

@@ -1,39 +1,75 @@
-import * as THREE from 'three';
+import * as BABYLON from '@babylonjs/core';
 
 export class AudioManager {
-  constructor() {
-    this.listener = new THREE.AudioListener();
+  constructor(scene) {
+    this.scene = scene;
     this.sounds = new Map();
     this.ambientSounds = new Map();
     this.masterVolume = 1.0;
     this.musicVolume = 0.7;
     this.sfxVolume = 1.0;
+    this.soundMetadata = new Map(); // Store custom metadata for sounds
   }
 
   attachToCamera(camera) {
-    camera.add(this.listener);
+    // In Babylon.js, spatial sound automatically uses the active camera
+    // No need to explicitly attach to camera
+    this.camera = camera;
   }
 
-  createPositionalSound(name, soundData) {
-    const sound = new THREE.PositionalAudio(this.listener);
+  createPositionalSound(name, soundData, mesh = null) {
     // Note: In real implementation, you'd load actual audio files
-    // sound.setBuffer(buffer);
-    sound.setRefDistance(soundData.refDistance || 5);
-    sound.setVolume(soundData.volume || 1.0);
-    sound.setLoop(soundData.loop || false);
+    // For now, creating a placeholder structure
+    const sound = new BABYLON.Sound(
+      name,
+      null, // URL would go here
+      this.scene,
+      null,
+      {
+        loop: soundData.loop || false,
+        autoplay: false,
+        volume: soundData.volume || 1.0,
+        spatialSound: true,
+        maxDistance: (soundData.refDistance || 5) * 10, // Babylon uses maxDistance instead of refDistance
+        distanceModel: 'exponential'
+      }
+    );
+
+    // Attach to mesh if provided
+    if (mesh) {
+      sound.attachToMesh(mesh);
+    }
 
     this.sounds.set(name, sound);
+    this.soundMetadata.set(name, {
+      baseVolume: soundData.volume || 1.0,
+      originalVolume: soundData.volume || 1.0
+    });
+
     return sound;
   }
 
   createAmbientSound(name, soundData) {
-    const sound = new THREE.Audio(this.listener);
     // Note: In real implementation, you'd load actual audio files
-    // sound.setBuffer(buffer);
-    sound.setVolume((soundData.volume || 1.0) * this.musicVolume);
-    sound.setLoop(soundData.loop !== false);
+    const sound = new BABYLON.Sound(
+      name,
+      null, // URL would go here
+      this.scene,
+      null,
+      {
+        loop: soundData.loop !== false,
+        autoplay: false,
+        volume: (soundData.volume || 1.0) * this.musicVolume,
+        spatialSound: false
+      }
+    );
 
     this.ambientSounds.set(name, sound);
+    this.soundMetadata.set(name, {
+      baseVolume: soundData.volume || 1.0,
+      originalVolume: soundData.volume || 1.0
+    });
+
     return sound;
   }
 
@@ -60,7 +96,8 @@ export class AudioManager {
   }
 
   fadeIn(sound, duration) {
-    const targetVolume = sound.userData.originalVolume || sound.getVolume();
+    const metadata = this.soundMetadata.get(sound.name);
+    const targetVolume = metadata?.originalVolume || sound.getVolume();
     sound.setVolume(0);
     sound.play();
 
@@ -109,33 +146,38 @@ export class AudioManager {
   setMusicVolume(volume) {
     this.musicVolume = Math.max(0, Math.min(1, volume));
     this.ambientSounds.forEach(sound => {
-      sound.setVolume((sound.userData.baseVolume || 1.0) * this.musicVolume * this.masterVolume);
+      const metadata = this.soundMetadata.get(sound.name);
+      const baseVolume = metadata?.baseVolume || 1.0;
+      sound.setVolume(baseVolume * this.musicVolume * this.masterVolume);
     });
   }
 
   setSFXVolume(volume) {
     this.sfxVolume = Math.max(0, Math.min(1, volume));
     this.sounds.forEach(sound => {
-      sound.setVolume((sound.userData.baseVolume || 1.0) * this.sfxVolume * this.masterVolume);
+      const metadata = this.soundMetadata.get(sound.name);
+      const baseVolume = metadata?.baseVolume || 1.0;
+      sound.setVolume(baseVolume * this.sfxVolume * this.masterVolume);
     });
   }
 
   updateAllVolumes() {
     this.sounds.forEach(sound => {
-      sound.setVolume((sound.userData.baseVolume || 1.0) * this.sfxVolume * this.masterVolume);
+      const metadata = this.soundMetadata.get(sound.name);
+      const baseVolume = metadata?.baseVolume || 1.0;
+      sound.setVolume(baseVolume * this.sfxVolume * this.masterVolume);
     });
     this.ambientSounds.forEach(sound => {
-      sound.setVolume((sound.userData.baseVolume || 1.0) * this.musicVolume * this.masterVolume);
+      const metadata = this.soundMetadata.get(sound.name);
+      const baseVolume = metadata?.baseVolume || 1.0;
+      sound.setVolume(baseVolume * this.musicVolume * this.masterVolume);
     });
   }
 
   // Placeholder for actual audio loading
-  // In real implementation, you'd use THREE.AudioLoader
+  // In real implementation, you'd use BABYLON.Sound with actual file URLs
   async loadSound(url) {
-    // const audioLoader = new THREE.AudioLoader();
-    // return new Promise((resolve, reject) => {
-    //   audioLoader.load(url, resolve, undefined, reject);
-    // });
+    // const sound = new BABYLON.Sound("name", url, this.scene, callback);
     console.log(`Audio loading placeholder for: ${url}`);
     return null;
   }
