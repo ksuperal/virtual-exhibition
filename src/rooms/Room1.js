@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { BaseRoom } from './BaseRoom.js';
+import '@babylonjs/loaders/glTF';
 
 export class Room1 extends BaseRoom {
   constructor(scene, interactionManager, audioManager, shadowGenerator) {
@@ -10,7 +11,7 @@ export class Room1 extends BaseRoom {
   async init() {
     // Create warm, nostalgic childhood home environment
     this.createRoomStructure();
-    this.createFurniture();
+    await this.createFurniture();
     this.createLighting();
     this.addInteractions();
   }
@@ -127,71 +128,52 @@ export class Room1 extends BaseRoom {
     doorFrame.parent = this.group;
   }
 
-  createFurniture() {
-    // Wooden dining table - centered and closer
-    const tableTop = this.createBox(
-      2.5, 0.1, 1.2,
-      0x8b4513,
-      new BABYLON.Vector3(0, 0.8, -2).add(this.roomOffset)
-    );
-    tableTop.parent = this.group;
+  // ...existing code...
+  async createBicycle(position) {
+    try {
+      console.log("🚴 Starting to load bicycle model...");
+      console.log("📁 Path: /models/bike/bike.glb");
+      
+      // Load the 3D model from public/models/bike/bike.glb
+      const result = await BABYLON.SceneLoader.ImportMeshAsync(
+        "",                // load all meshes
+        "/models/bike/",   // folder under public
+        "bike.glb",        // file name
+        this.scene
+      );
 
-    const tableLeg1 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -2.5).add(this.roomOffset));
-    const tableLeg2 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -1.5).add(this.roomOffset));
-    const tableLeg3 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -2.5).add(this.roomOffset));
-    const tableLeg4 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -1.5).add(this.roomOffset));
-    tableLeg1.parent = this.group;
-    tableLeg2.parent = this.group;
-    tableLeg3.parent = this.group;
-    tableLeg4.parent = this.group;
+      console.log("✅ Bicycle model loaded! Meshes:", result.meshes.length);
 
-    // Chairs around table - closer together
-    this.createChair(new BABYLON.Vector3(0, 0, -3.2).add(this.roomOffset), 0);
-    this.createChair(new BABYLON.Vector3(-2, 0, -2).add(this.roomOffset), Math.PI / 2);
-    this.createChair(new BABYLON.Vector3(2, 0, -2).add(this.roomOffset), -Math.PI / 2);
 
-    // Old bicycle in corner
-    this.createBicycle(new BABYLON.Vector3(4, 0, -3.5).add(this.roomOffset));
+      const bicycle = result.meshes[0];
+      bicycle.name = "bicycle";
+      bicycle.position = new BABYLON.Vector3(position.x, position.y + 0.5, position.z);
+      bicycle.rotationQuaternion = null
+      bicycle.rotation.y = Math.PI / 2;
+      bicycle.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+      bicycle.parent = this.group;
 
-    // Floral plates on table
-    this.createPlates();
+      if (this.shadowGenerator) {
+        result.meshes.forEach(m => this.shadowGenerator.addShadowCaster(m));
+      }
+      result.meshes.forEach(m => (m.receiveShadows = true));
 
-    // Small cabinet
-    this.createCabinet(new BABYLON.Vector3(4.5, 0, 2).add(this.roomOffset));
+      this.addInteractiveObject(
+        bicycle,
+        () => this.onBicycleInteraction(),
+        "This was the bike we learned to ride"
+      );
+
+      return bicycle;
+    } catch (error) {
+      console.error("❌ Failed to load bicycle model:", error);
+      console.log("Using fallback simple bicycle instead...");
+      return this.createSimpleBicycle(position);
+    }
   }
-
-  createChair(position, rotation) {
-    const chair = new BABYLON.TransformNode('chair', this.scene);
-
-    // Seat
-    const seat = this.createBox(0.5, 0.05, 0.5, 0x8b4513, new BABYLON.Vector3(0, 0.5, 0));
-    seat.parent = chair;
-
-    // Backrest
-    const backrest = this.createBox(0.5, 0.6, 0.05, 0x8b4513, new BABYLON.Vector3(0, 0.8, -0.225));
-    backrest.parent = chair;
-
-    // Legs
-    const leg1 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, -0.2));
-    const leg2 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, -0.2));
-    const leg3 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, 0.2));
-    const leg4 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, 0.2));
-    leg1.parent = chair;
-    leg2.parent = chair;
-    leg3.parent = chair;
-    leg4.parent = chair;
-
-    chair.position = position;
-    chair.rotation.y = rotation;
-    chair.parent = this.group;
-
-    // Make chair interactive
-    this.addInteractiveObject(chair, () => {
-      this.onChairInteraction();
-    }, 'This is where we sat for dinner');
-  }
-
-  createBicycle(position) {
+// ...existing code...
+  createSimpleBicycle(position) {
+    // Keep your existing code as fallback
     const bicycle = new BABYLON.TransformNode('bicycle', this.scene);
 
     // Simplified bicycle representation
@@ -229,6 +211,72 @@ export class Room1 extends BaseRoom {
     this.addInteractiveObject(bicycle, () => {
       this.onBicycleInteraction();
     }, 'This was the bike we learned to ride');
+
+    return bicycle;
+  }
+
+  async createFurniture() {
+    // Wooden dining table - centered and closer
+    const tableTop = this.createBox(
+      2.5, 0.1, 1.2,
+      0x8b4513,
+      new BABYLON.Vector3(0, 0.8, -2).add(this.roomOffset)
+    );
+    tableTop.parent = this.group;
+
+    const tableLeg1 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -2.5).add(this.roomOffset));
+    const tableLeg2 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(-1.15, 0.4, -1.5).add(this.roomOffset));
+    const tableLeg3 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -2.5).add(this.roomOffset));
+    const tableLeg4 = this.createCylinder(0.05, 0.05, 0.8, 0x654321, new BABYLON.Vector3(1.15, 0.4, -1.5).add(this.roomOffset));
+    tableLeg1.parent = this.group;
+    tableLeg2.parent = this.group;
+    tableLeg3.parent = this.group;
+    tableLeg4.parent = this.group;
+
+    // Chairs around table - closer together
+    this.createChair(new BABYLON.Vector3(0, 0, -3.2).add(this.roomOffset), 0);
+    this.createChair(new BABYLON.Vector3(-2, 0, -2).add(this.roomOffset), Math.PI / 2);
+    this.createChair(new BABYLON.Vector3(2, 0, -2).add(this.roomOffset), -Math.PI / 2);
+
+    // Old bicycle in corner - now async
+    await this.createBicycle(new BABYLON.Vector3(4, 0, -3.5).add(this.roomOffset));
+
+    // Floral plates on table
+    this.createPlates();
+
+    // Small cabinet
+    this.createCabinet(new BABYLON.Vector3(4.5, 0, 2).add(this.roomOffset));
+  }
+
+  createChair(position, rotation) {
+    const chair = new BABYLON.TransformNode('chair', this.scene);
+
+    // Seat
+    const seat = this.createBox(0.5, 0.05, 0.5, 0x8b4513, new BABYLON.Vector3(0, 0.5, 0));
+    seat.parent = chair;
+
+    // Backrest
+    const backrest = this.createBox(0.5, 0.6, 0.05, 0x8b4513, new BABYLON.Vector3(0, 0.8, -0.225));
+    backrest.parent = chair;
+
+    // Legs
+    const leg1 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, -0.2));
+    const leg2 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, -0.2));
+    const leg3 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(-0.2, 0.25, 0.2));
+    const leg4 = this.createCylinder(0.03, 0.03, 0.5, 0x654321, new BABYLON.Vector3(0.2, 0.25, 0.2));
+    leg1.parent = chair;
+    leg2.parent = chair;
+    leg3.parent = chair;
+    leg4.parent = chair;
+
+    chair.position = position;
+    chair.rotation.y = rotation;
+    chair.parent = this.group;
+
+    // Make chair interactive
+    this.addInteractiveObject(chair, () => {
+      this.onChairInteraction();
+    }, 'This is where we sat for dinner');
   }
 
   createPlates() {
