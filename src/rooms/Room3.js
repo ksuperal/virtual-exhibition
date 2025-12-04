@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room3 extends BaseRoom {
@@ -146,20 +147,24 @@ export class Room3 extends BaseRoom {
   }
 
   createWineGlass(liquidColor) {
+    // Using simple geometry - 3D models have too complex materials that cause shader errors
+    return this.createSimpleWineGlass(liquidColor);
+  }
+
+  createSimpleWineGlass(liquidColor) {
+    // Simple wine glass using primitives - optimized to avoid shader errors
     const glass = new BABYLON.TransformNode('wineGlass', this.scene);
 
-    // Create glass material with transparency and alpha mode
-    const glassMaterial = new BABYLON.PBRMaterial('glassMaterial', this.scene);
+    // Use StandardMaterial instead of PBRMaterial to avoid shader complexity
+    const glassMaterial = new BABYLON.StandardMaterial(`glassMat_${Date.now()}`, this.scene);
     glassMaterial.diffuseColor = BABYLON.Color3.White();
     glassMaterial.alpha = 0.4;
-    glassMaterial.alphaMode = BABYLON.Engine.ALPHA_BLEND;
-    glassMaterial.roughness = 0.1;
-    glassMaterial.metallic = 0.1;
+    glassMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
 
     // Glass stem
     const stem = BABYLON.MeshBuilder.CreateCylinder('stem', {
-      diameterTop: 0.02 * 2,
-      diameterBottom: 0.03 * 2,
+      diameterTop: 0.04,
+      diameterBottom: 0.06,
       height: 0.3,
       tessellation: 16
     }, this.scene);
@@ -170,8 +175,8 @@ export class Room3 extends BaseRoom {
 
     // Glass base
     const base = BABYLON.MeshBuilder.CreateCylinder('base', {
-      diameterTop: 0.08 * 2,
-      diameterBottom: 0.06 * 2,
+      diameterTop: 0.16,
+      diameterBottom: 0.12,
       height: 0.05,
       tessellation: 16
     }, this.scene);
@@ -180,31 +185,34 @@ export class Room3 extends BaseRoom {
     base.position.y = 0.025;
     base.parent = glass;
 
-    // Glass bowl
-    const bowl = BABYLON.MeshBuilder.CreateSphere('bowl', {
-      diameter: 0.12 * 2,
-      segments: 32
+    // Glass bowl - make it more wine glass shaped
+    const bowl = BABYLON.MeshBuilder.CreateCylinder('bowl', {
+      diameterTop: 0.22,
+      diameterBottom: 0.12,
+      height: 0.35,
+      tessellation: 32
     }, this.scene);
 
     bowl.material = glassMaterial;
-    bowl.position.y = 0.38;
+    bowl.position.y = 0.48;
     bowl.parent = glass;
 
     // Wine liquid inside
-    const liquidMaterial = new BABYLON.StandardMaterial('liquidMaterial', this.scene);
+    const liquidMaterial = new BABYLON.StandardMaterial(`liquidMat_${Date.now()}`, this.scene);
     const liquidColorHex = '#' + liquidColor.toString(16).padStart(6, '0');
     liquidMaterial.diffuseColor = BABYLON.Color3.FromHexString(liquidColorHex);
     liquidMaterial.alpha = 0.7;
-    liquidMaterial.alphaMode = BABYLON.Engine.ALPHA_BLEND;
-    liquidMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    liquidMaterial.emissiveColor = BABYLON.Color3.FromHexString(liquidColorHex).scale(0.3);
 
-    const liquid = BABYLON.MeshBuilder.CreateSphere('liquid', {
-      diameter: 0.11 * 2,
-      segments: 32
+    const liquid = BABYLON.MeshBuilder.CreateCylinder('liquid', {
+      diameterTop: 0.18,
+      diameterBottom: 0.1,
+      height: 0.25,
+      tessellation: 32
     }, this.scene);
 
     liquid.material = liquidMaterial;
-    liquid.position.y = 0.32;
+    liquid.position.y = 0.43;
     liquid.parent = glass;
 
     return glass;
