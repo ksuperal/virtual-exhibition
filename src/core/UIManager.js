@@ -35,7 +35,7 @@ export class UIManager {
     });
   }
 
-  showModal(title, content) {
+  showModal(title, content, onClose = null, onShow = null) {
     if (this.modal && this.modalTitle && this.modalBody) {
       this.modalTitle.textContent = title;
 
@@ -46,11 +46,19 @@ export class UIManager {
         this.modalBody.appendChild(content);
       }
 
+      // Store callbacks
+      this.onModalClose = onClose;
+
       this.modal.classList.remove('hidden');
 
       // Exit pointer lock when modal opens
       if (document.pointerLockElement) {
         document.exitPointerLock();
+      }
+
+      // Call onShow callback if provided
+      if (onShow) {
+        setTimeout(() => onShow(), 0);
       }
     }
   }
@@ -58,6 +66,13 @@ export class UIManager {
   hideModal() {
     if (this.modal) {
       this.modal.classList.add('hidden');
+
+      // Call onClose callback if provided
+      if (this.onModalClose) {
+        const callback = this.onModalClose;
+        this.onModalClose = null; // Clear it
+        callback();
+      }
     }
   }
 
