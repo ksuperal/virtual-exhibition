@@ -1,0 +1,8 @@
+room1: blurry - ambient sound - floating text "Childhood memories are fragile. If you try to force them, they blur. If you sit quietly with them, they become clear."
+room2: The Concept Translation: "Digital Weight"
+        In a physical room, you use Gravity to make people feel burdened. In a digital room, we must use Latency and Obscurity.
+        The New Mechanic: Instead of a backpack, the user accumulates "Digital Clutter." As they walk through the surreal landscape, "Responsibilities" (floating clocks, documents, chains, stone blocks) magnetically attach to the camera.
+        Visual Consequence: The objects physically block their view (obscuring the screen).
+        Navigation Consequence: The more objects attached, the slower the camera moves. The mouse becomes "heavy" (less responsive).
+
+room3: 

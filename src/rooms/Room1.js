@@ -18,7 +18,10 @@ export class Room1 extends BaseRoom {
 
   createRoomStructure() {
     // ENCLOSED: Smaller room with lower ceiling for intimate feeling
-    const walls = this.createWalls(12, 2.8, 10, 0xf5deb3); // Wheat color, ceiling lowered to 2.8
+    // Room 1 has NO right wall (Room 2's left wall serves as the shared wall)
+    const walls = this.createWalls(12, 2.8, 10, 0xf5deb3, {
+      hasRightWall: false  // No right wall - open to Room 2
+    });
     walls.position = this.roomOffset;
     walls.parent = this.group;
 
@@ -27,9 +30,6 @@ export class Room1 extends BaseRoom {
 
     // Add window with curtains
     this.createWindow();
-
-    // Add door frame
-    this.createDoorway();
   }
 
   createSidePartitions() {
@@ -118,15 +118,6 @@ export class Room1 extends BaseRoom {
     this.curtains = { left: leftCurtain, right: rightCurtain };
   }
 
-  createDoorway() {
-    // Door frame on the opposite side - adjusted for smaller room
-    const doorFrame = this.createBox(
-      0.1, 2.2, 1.2,
-      0x8b7355,
-      new BABYLON.Vector3(5.9, 1.1, 3).add(this.roomOffset)
-    );
-    doorFrame.parent = this.group;
-  }
 
   // ...existing code...
   async createBicycle(position) {

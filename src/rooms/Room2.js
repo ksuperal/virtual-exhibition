@@ -4,7 +4,7 @@ import { BaseRoom } from './BaseRoom.js';
 export class Room2 extends BaseRoom {
   constructor(scene, interactionManager, audioManager, shadowGenerator) {
     super(scene, interactionManager, audioManager, shadowGenerator);
-    this.roomOffset = new BABYLON.Vector3(30, 0, 0);
+    this.roomOffset = new BABYLON.Vector3(12, 0, 0); // Wall-by-wall with Room 1
     this.hasBurden = true;
     this.burdenBag = null;
   }
@@ -20,7 +20,11 @@ export class Room2 extends BaseRoom {
 
   createRoomStructure() {
     // ENCLOSED: Smaller, lower ceiling for cozy enclosed feeling
-    const walls = this.createWalls(12, 3.2, 12, 0xe6e6fa); // Lavender, lower ceiling
+    // Room 2 has left wall with doorway (shared with Room 1), no right wall (Room 3's left wall serves as shared wall)
+    const walls = this.createWalls(12, 3.2, 12, 0xe6e6fa, {
+      hasLeftDoorway: true,  // Doorway on left wall (from Room 1)
+      hasRightWall: false    // No right wall - open to Room 3
+    });
     walls.position = this.roomOffset;
     walls.parent = this.group;
 

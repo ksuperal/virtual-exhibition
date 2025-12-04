@@ -88,13 +88,13 @@ class VirtualExhibition {
   }
 
   setupRoomNavigation() {
-    // Add keyboard shortcuts for room navigation (for testing/development)
+    // Add keyboard shortcuts for quick room navigation (optional - you can also walk between rooms)
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Digit1') this.sceneManager.enterRoom(1);
-      if (e.code === 'Digit2') this.sceneManager.enterRoom(2);
-      if (e.code === 'Digit3') this.sceneManager.enterRoom(3);
-      if (e.code === 'Digit4') this.sceneManager.enterRoom(4);
-      if (e.code === 'Digit5') this.sceneManager.enterRoom(5);
+      if (e.code === 'Digit1') this.sceneManager.enterRoom(1, true);
+      if (e.code === 'Digit2') this.sceneManager.enterRoom(2, true);
+      if (e.code === 'Digit3') this.sceneManager.enterRoom(3, true);
+      if (e.code === 'Digit4') this.sceneManager.enterRoom(4, true);
+      if (e.code === 'Digit5') this.sceneManager.enterRoom(5, true);
     });
   }
 }

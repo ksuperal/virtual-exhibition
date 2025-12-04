@@ -4,7 +4,7 @@ import { BaseRoom } from './BaseRoom.js';
 export class Room4 extends BaseRoom {
   constructor(scene, interactionManager, audioManager, shadowGenerator) {
     super(scene, interactionManager, audioManager, shadowGenerator);
-    this.roomOffset = new BABYLON.Vector3(90, 0, 0);
+    this.roomOffset = new BABYLON.Vector3(40, 0, 0); // Wall-by-wall with Room 3
     this.stars = [];
     this.userStars = [];
     this.floatingStars = []; // Stars that orbit around the player
@@ -24,7 +24,11 @@ export class Room4 extends BaseRoom {
 
   createRoomStructure() {
     // ENCLOSED: Intimate cosmic space with lower ceiling
-    const walls = this.createWalls(16, 3.5, 14, 0x000000);
+    // Room 4 has left wall with doorway (shared with Room 3), no right wall (Room 5's left wall serves as shared wall)
+    const walls = this.createWalls(16, 3.5, 14, 0x000000, {
+      hasLeftDoorway: true,  // Doorway on left wall (from Room 3)
+      hasRightWall: false    // No right wall - open to Room 5
+    });
     walls.position = this.roomOffset.clone();
 
     // Make walls nearly invisible (space feeling)

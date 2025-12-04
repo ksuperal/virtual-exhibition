@@ -131,40 +131,91 @@ export class SceneManager {
     this.rooms.set(4, new Room4(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
     this.rooms.set(5, new Room5(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
 
-    // Initialize all rooms
+    // Initialize all rooms and keep them all visible for seamless walking
     for (const [id, room] of this.rooms) {
       await room.init();
-      room.hide(); // Hide all rooms initially
+      room.show(); // Keep all rooms visible for seamless walking
     }
+
+    // Room boundaries for automatic detection (wall-by-wall placement)
+    this.roomBoundaries = [
+      { roomNumber: 1, minX: -6, maxX: 6 },      // Room 1: x=0, width=12, spans -6 to 6
+      { roomNumber: 2, minX: 6, maxX: 18 },      // Room 2: x=12, width=12, spans 6 to 18
+      { roomNumber: 3, minX: 18, maxX: 32 },     // Room 3: x=25, width=14, spans 18 to 32
+      { roomNumber: 4, minX: 32, maxX: 48 },     // Room 4: x=40, width=16, spans 32 to 48
+      { roomNumber: 5, minX: 48, maxX: 62 }      // Room 5: x=55, width=14, spans 48 to 62
+    ];
   }
 
-  async enterRoom(roomNumber) {
+  async enterRoom(roomNumber, shouldSetCamera = true) {
     // Exit current room
     if (this.currentRoom) {
-      await this.currentRoom.onExit();
-      this.currentRoom.hide();
+      const currentRoomNumber = this.getCurrentRoomNumber();
+      if (currentRoomNumber !== roomNumber) {
+        await this.currentRoom.onExit();
+      }
     }
 
     // Enter new room
     const room = this.rooms.get(roomNumber);
     if (room) {
       this.currentRoom = room;
-      room.show();
       await room.onEnter();
 
-      // Set camera position for the room
-      this.setCameraForRoom(roomNumber);
+      // Set camera position for the room (only when teleporting via keyboard)
+      if (shouldSetCamera) {
+        this.setCameraForRoom(roomNumber);
+      }
+
+      // Update room title
+      this.updateRoomTitle(roomNumber);
+    }
+  }
+
+  getCurrentRoomNumber() {
+    for (const [roomNumber, room] of this.rooms) {
+      if (room === this.currentRoom) {
+        return roomNumber;
+      }
+    }
+    return null;
+  }
+
+  detectCurrentRoom() {
+    const cameraX = this.camera.position.x;
+
+    for (const boundary of this.roomBoundaries) {
+      if (cameraX >= boundary.minX && cameraX < boundary.maxX) {
+        return boundary.roomNumber;
+      }
+    }
+
+    return 1; // Default to room 1
+  }
+
+  updateRoomTitle(roomNumber) {
+    const titles = {
+      1: { title: 'ROOM 1 — Home in Memory', subtitle: 'Reconnect with your earliest memories of home' },
+      2: { title: 'ROOM 2 — The Weight of Belonging', subtitle: 'Navigate the challenges of finding your place' },
+      3: { title: 'ROOM 3 — Fragments of Identity', subtitle: 'Piece together who you are' },
+      4: { title: 'ROOM 4 — The Cosmic Perspective', subtitle: 'See yourself in the universe' },
+      5: { title: 'ROOM 5 — Building New Homes', subtitle: 'Create community and connection' }
+    };
+
+    const roomData = titles[roomNumber];
+    if (roomData && window.app?.uiManager) {
+      window.app.uiManager.showRoomTitle(roomData.title, roomData.subtitle);
     }
   }
 
   setCameraForRoom(roomNumber) {
-    // UPDATED: Adjusted starting positions for smaller rooms - start closer to center
+    // Wall-by-wall placement: rooms are directly adjacent
     const positions = {
-      1: { x: 0, y: 1.6, z: 4 },    // Reduced from z:10 to z:4
-      2: { x: 30, y: 1.6, z: 5 },   // Reduced from z:10 to z:5
-      3: { x: 60, y: 1.6, z: 5 },   // Reduced from z:10 to z:5
-      4: { x: 90, y: 1.6, z: 6 },   // Reduced from z:10 to z:6
-      5: { x: 120, y: 1.6, z: 5 }   // Reduced from z:10 to z:5
+      1: { x: 0, y: 1.6, z: 4 },      // Room 1: center at x=0
+      2: { x: 12, y: 1.6, z: 5 },     // Room 2: center at x=12
+      3: { x: 25, y: 1.6, z: 5 },     // Room 3: center at x=25
+      4: { x: 40, y: 1.6, z: 6 },     // Room 4: center at x=40
+      5: { x: 55, y: 1.6, z: 5 }      // Room 5: center at x=55
     };
 
     const pos = positions[roomNumber];
@@ -185,6 +236,13 @@ export class SceneManager {
 
       // Update controls
       this.controls.update(deltaTime);
+
+      // Detect room transitions based on camera position
+      const detectedRoom = this.detectCurrentRoom();
+      const currentRoomNumber = this.getCurrentRoomNumber();
+      if (detectedRoom !== currentRoomNumber) {
+        this.enterRoom(detectedRoom, false); // Don't set camera position when walking
+      }
 
       // Update current room
       if (this.currentRoom) {
