@@ -131,9 +131,6 @@ export class Room1 extends BaseRoom {
   // ...existing code...
   async createBicycle(position) {
     try {
-      console.log("🚴 Starting to load bicycle model...");
-      console.log("📁 Path: /models/bike/bike.glb");
-      
       // Load the 3D model from public/models/bike/bike.glb
       const result = await BABYLON.SceneLoader.ImportMeshAsync(
         "",                // load all meshes
@@ -141,9 +138,6 @@ export class Room1 extends BaseRoom {
         "bike.glb",        // file name
         this.scene
       );
-
-      console.log("✅ Bicycle model loaded! Meshes:", result.meshes.length);
-
 
       const bicycle = result.meshes[0];
       bicycle.name = "bicycle";
@@ -166,8 +160,6 @@ export class Room1 extends BaseRoom {
 
       return bicycle;
     } catch (error) {
-      console.error("❌ Failed to load bicycle model:", error);
-      console.log("Using fallback simple bicycle instead...");
       return this.createSimpleBicycle(position);
     }
   }
