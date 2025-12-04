@@ -5,4 +5,16 @@ room2: The Concept Translation: "Digital Weight"
         Visual Consequence: The objects physically block their view (obscuring the screen).
         Navigation Consequence: The more objects attached, the slower the camera moves. The mouse becomes "heavy" (less responsive).
 
-room3: 
+room3: start as wine glass around the circle table. After each glass get pick and put to the center of table, the mood (color of the room) change. Each glass show different text represent different mood. The door to the next room is lock, the player have to pick up new glass- 
+        "How about you pick up some glass of your own" the glass will be all around the floor, the user should pick up one glass and type they own feeling in to it.
+
+room4: 1. The Digital Concept: "The Scroll of Perspective"
+        In a physical room, you walk around. In a browser, the most natural interaction for "distance" is Scaling or Zooming.
+        The "Story-Living" Mechanic:
+        The Burden (Macro): The user starts with their "Problem" (text) rendered as a Massive Asteroid. It fills 90% of the screen. It looks rough, jagged, and heavy. It rotates slowly and ominously.
+        The Input (Release): The user types their worry. The text burns into the surface of the asteroid.
+        The Process (Zoom): The user initiates the "Launch." The camera doesn't just cut to the stars. It moves backwards at an accelerating speed.
+        0-5 seconds: The asteroid shrinks.
+        5-10 seconds: The asteroid becomes a dot.
+        10-20 seconds: The dot joins a stream of 10,000 other dots (other users' problems).
+        The Output (Micro): The user realizes their "Asteroid" is just one pixel in a beautiful, swirling galaxy.

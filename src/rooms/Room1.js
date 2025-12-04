@@ -14,6 +14,7 @@ export class Room1 extends BaseRoom {
     await this.createFurniture();
     this.createLighting();
     this.addInteractions();
+    this.createFloatingText();
   }
 
   createRoomStructure() {
@@ -391,17 +392,85 @@ export class Room1 extends BaseRoom {
     }
   }
 
+  createFloatingText() {
+    // Create floating text about childhood memories
+    const textPlane = BABYLON.MeshBuilder.CreatePlane('memoryText', {
+      width: 6,
+      height: 2
+    }, this.scene);
+
+    textPlane.position = new BABYLON.Vector3(0, 2, -4).add(this.roomOffset);
+    textPlane.rotation = new BABYLON.Vector3(0, Math.PI, 0); // Flip 180 degrees around Y axis
+    textPlane.parent = this.group;
+
+    // Create dynamic texture for text
+    const textTexture = new BABYLON.DynamicTexture('memoryTextTexture', {width: 1024, height: 512}, this.scene);
+    const textMaterial = new BABYLON.StandardMaterial('memoryTextMaterial', this.scene);
+    textMaterial.diffuseTexture = textTexture;
+    textMaterial.emissiveTexture = textTexture;
+    textMaterial.opacityTexture = textTexture;
+    textMaterial.backFaceCulling = false;
+    textPlane.material = textMaterial;
+
+    // Draw text
+    const ctx = textTexture.getContext();
+    ctx.font = '32px Arial';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'; // black text
+    ctx.textAlign = 'center';
+
+    // Use the exact quote
+    const text = "Childhood memories are fragile. If you try to force them, they blur. If you sit quietly with them, they become clear.";
+    // Wrap text for display
+    const lines = [
+      "Childhood memories are fragile.",
+      "If you try to force them, they blur.",
+      "If you sit quietly with them, they become clear."
+    ];
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 512, 200 + i * 40);
+    });
+    textTexture.update();
+
+    this.floatingText = textPlane;
+  }
+
   async onEnter() {
-    // Play ambient home sounds
-    // this.audioManager.play('home-ambience', 2);
+    // Play ambient home sounds (ambient pad + distant chimes)
+    this.audioManager.play('room1-ambience', 2);
 
     // Start subtle animations
     this.animationTime = 0;
+    this.stillnessTime = 0;
+
+    // Enable blur effect (blurry visuals when moving, clear when still)
+    const camera = this.scene.activeCamera;
+    if (camera && this.scene.getEngine()) {
+      const pipeline = new BABYLON.DefaultRenderingPipeline(
+        'room1Pipeline',
+        true,
+        this.scene,
+        [camera]
+      );
+      pipeline.depthOfFieldEnabled = true;
+      pipeline.depthOfField.focalLength = 50;
+      pipeline.depthOfField.fStop = 1.4;
+      pipeline.depthOfField.focusDistance = 2000;
+      pipeline.bloomEnabled = true;
+      pipeline.bloomWeight = 0.25;
+      pipeline.grainEnabled = true;
+      pipeline.grainIntensity = 2.0;
+      this.blurPipeline = pipeline;
+    }
   }
 
   async onExit() {
-    // Fade out sounds
-    // this.audioManager.stop('home-ambience', 2);
+    // Fade out ambient sound
+    this.audioManager.stop('room1-ambience', 2);
+    // Disable blur effect
+    if (this.blurPipeline) {
+      this.blurPipeline.dispose();
+      this.blurPipeline = null;
+    }
   }
 
   update(deltaTime) {
@@ -411,6 +480,41 @@ export class Room1 extends BaseRoom {
     if (this.curtains) {
       this.curtains.left.position.x = -5.75 + Math.sin(this.animationTime * 0.5) * 0.05;
       this.curtains.right.position.x = -5.75 + Math.sin(this.animationTime * 0.5 + Math.PI) * 0.05;
+    }
+
+    // Float text gently and add parallax effect
+    if (this.floatingText) {
+      this.floatingText.position.y = 2 + Math.sin(this.animationTime * 0.8) * 0.1;
+      // Parallax: move text slightly based on camera position
+      const camera = this.scene.activeCamera;
+      if (camera) {
+        const camPos = camera.position;
+        this.floatingText.position.x = camPos.x * 0.05;
+        this.floatingText.position.z = -4 + camPos.z * 0.05;
+      }
+    }
+
+    // Check if camera is moving
+    const camera = this.scene.activeCamera;
+    if (camera && this.blurPipeline) {
+      const velocity = camera.velocity || new BABYLON.Vector3();
+      const isMoving = velocity.length() > 0.01;
+
+      if (isMoving) {
+        this.stillnessTime = 0;
+        // Enable blur pipeline when moving
+        this.blurPipeline.enabled = true;
+        this.blurPipeline.depthOfFieldEnabled = true;
+        this.blurPipeline.depthOfField.fStop = BABYLON.Scalar.Lerp(
+          this.blurPipeline.depthOfField.fStop,
+          0.3,
+          deltaTime * 3
+        );
+      } else {
+        this.stillnessTime += deltaTime;
+        // Disable blur pipeline when still
+        this.blurPipeline.enabled = false;
+      }
     }
   }
 }
