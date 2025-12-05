@@ -99,11 +99,11 @@ export class Room3 extends BaseRoom {
     this.wineGlasses = [];
 
     const glassPositions = [
-      { pos: new BABYLON.Vector3(-2, 1, 0), color: 0xff6b6b },
-      { pos: new BABYLON.Vector3(0, 1, 0), color: 0x4ecdc4 },
-      { pos: new BABYLON.Vector3(2, 1, 0), color: 0xffe66d },
-      { pos: new BABYLON.Vector3(-1, 1, -1.5), color: 0x95e1d3 },
-      { pos: new BABYLON.Vector3(1, 1, -1.5), color: 0xf38181 }
+      { pos: new BABYLON.Vector3(-2, 0, 0), color: 0xff6b6b },
+      { pos: new BABYLON.Vector3(0, 0, 0), color: 0x4ecdc4 },
+      { pos: new BABYLON.Vector3(2, 0, 0), color: 0xffe66d },
+      { pos: new BABYLON.Vector3(-1, 0, -1.5), color: 0x95e1d3 },
+      { pos: new BABYLON.Vector3(1, 0, -1.5), color: 0xf38181 }
     ];
 
     glassPositions.forEach((data, index) => {

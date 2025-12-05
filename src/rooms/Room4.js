@@ -49,7 +49,7 @@ export class Room4 extends BaseRoom {
     warmWallMaterial.diffuse = BABYLON.Color3.FromHexString('#faf0e6'); // Linen/beige like Room 5
     warmWallMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
 
-    // Apply materials: space wallpaper to all walls EXCEPT left and right walls
+    // Apply materials: space wallpaper to walls and ceiling
     walls.getDescendants().forEach(child => {
       if (child.material) {
         if (child.name && (child.name.includes('leftWall') || child.name.includes('Left'))) {
@@ -58,8 +58,12 @@ export class Room4 extends BaseRoom {
         } else if (child.name && (child.name.includes('rightWall') || child.name.includes('Right'))) {
           // Apply warm material to right wall
           child.material = warmWallMaterial;
-        } else {
-          // Apply space wallpaper to other walls (back, front, ceiling)
+        } else if (child.name && (child.name.includes('ceiling') || child.name.includes('Ceiling'))) {
+          // Apply space wallpaper to ceiling
+          child.material = spaceWallMaterial;
+          child.material.backFaceCulling = false; // Ensure visible from below
+        } else if (child.name && !(child.name.includes('floor') || child.name.includes('Floor'))) {
+          // Apply space wallpaper to other walls (back, front) but not floor
           child.material = spaceWallMaterial;
         }
       }
@@ -72,14 +76,17 @@ export class Room4 extends BaseRoom {
   }
 
   createSpaceGrid() {
-    // Create a simple grid plane instead of THREE.GridHelper
-    const gridMaterial = new BABYLON.StandardMaterial('gridMaterial', this.scene);
-    gridMaterial.diffuse = new BABYLON.Color3(0.133, 0.133, 0.267); // 0x222244
-    gridMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+    // Create floor with space texture
+    const spaceFloorMaterial = new BABYLON.StandardMaterial('spaceFloorMat', this.scene);
+    const spaceTexture = new BABYLON.Texture('./pictures/space.jpg', this.scene);
+    spaceFloorMaterial.diffuseTexture = spaceTexture;
+    spaceFloorMaterial.emissiveTexture = spaceTexture;
+    spaceFloorMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+    spaceFloorMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
 
     const gridPlane = BABYLON.MeshBuilder.CreateGround('grid', { width: 14, height: 12, subdivisions: 26 }, this.scene);
     gridPlane.position = this.roomOffset.add(new BABYLON.Vector3(0, 0.01, 0));
-    gridPlane.material = gridMaterial;
+    gridPlane.material = spaceFloorMaterial;
     gridPlane.parent = this.group;
 
     // Glow lines orbiting
