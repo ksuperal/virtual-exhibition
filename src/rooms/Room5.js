@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders';
 import { BaseRoom } from './BaseRoom.js';
 
 export class Room5 extends BaseRoom {
@@ -145,34 +146,44 @@ export class Room5 extends BaseRoom {
   }
 
   createTableSettings() {
-    // Tea cups, plates, candles
+    // Simple geometry only - scene is at WebGL uniform buffer capacity
     const itemsCount = 6;
     const spacing = 6 / itemsCount;
+
+    // Shared materials for all items
+    const cupMaterial = new BABYLON.StandardMaterial('cupMaterial', this.scene);
+    cupMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ffffff');
+    cupMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+
+    const plateMaterial = new BABYLON.StandardMaterial('plateMaterial', this.scene);
+    plateMaterial.diffuseColor = BABYLON.Color3.FromHexString('#f5f5dc');
+    plateMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+    const spoonMaterial = new BABYLON.StandardMaterial('spoonMaterial', this.scene);
+    spoonMaterial.diffuseColor = BABYLON.Color3.FromHexString('#c0c0c0');
+    spoonMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
 
     for (let i = 0; i < itemsCount; i++) {
       const x = -2.5 + i * spacing;
       const z = (i % 2 === 0) ? -0.6 : 0.6;
 
-      // Tea cup
-      const cup = new BABYLON.TransformNode('cup', this.scene);
+      // Tea cup (simple geometry)
+      const cup = new BABYLON.TransformNode(`cup${i}`, this.scene);
 
-      const cupBody = BABYLON.MeshBuilder.CreateCylinder('cupBody', {
+      const cupBody = BABYLON.MeshBuilder.CreateCylinder(`cupBody${i}`, {
         diameterTop: 0.08 * 2,
         diameterBottom: 0.06 * 2,
         height: 0.12,
         tessellation: 16
       }, this.scene);
-      const cupMaterial = new BABYLON.StandardMaterial('cupMaterial', this.scene);
-      cupMaterial.diffuseColor = BABYLON.Color3.FromHexString('#ffffff');
-      cupMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
       cupBody.material = cupMaterial;
       cupBody.parent = cup;
 
       // Handle
-      const handle = BABYLON.MeshBuilder.CreateTorus('handle', {
+      const handle = BABYLON.MeshBuilder.CreateTorus(`handle${i}`, {
         diameter: 0.05 * 2,
         thickness: 0.01,
-        tessellation: 16
+        tessellation: 8
       }, this.scene);
       handle.material = cupMaterial;
       handle.rotation.y = Math.PI / 2;
@@ -182,19 +193,43 @@ export class Room5 extends BaseRoom {
       cup.position = new BABYLON.Vector3(x, 0.92, z).add(this.roomOffset);
       cup.parent = this.group;
 
-      // Small plate
-      const plate = BABYLON.MeshBuilder.CreateCylinder('plate', {
+      // Plate
+      const plate = BABYLON.MeshBuilder.CreateCylinder(`plate${i}`, {
         diameterTop: 0.12 * 2,
         diameterBottom: 0.12 * 2,
         height: 0.02,
         tessellation: 32
       }, this.scene);
-      const plateMaterial = new BABYLON.StandardMaterial('plateMaterial', this.scene);
-      plateMaterial.diffuseColor = BABYLON.Color3.FromHexString('#f5f5dc');
-      plateMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
       plate.material = plateMaterial;
       plate.position = new BABYLON.Vector3(x, 0.86, z - 0.3).add(this.roomOffset);
       plate.parent = this.group;
+
+      // Spoon
+      const spoon = new BABYLON.TransformNode(`spoon${i}`, this.scene);
+
+      // Spoon handle
+      const spoonHandle = BABYLON.MeshBuilder.CreateCylinder(`spoonHandle${i}`, {
+        diameter: 0.01,
+        height: 0.12,
+        tessellation: 8
+      }, this.scene);
+      spoonHandle.material = spoonMaterial;
+      spoonHandle.rotation.z = Math.PI / 2;
+      spoonHandle.position = new BABYLON.Vector3(-0.06, 0, 0);
+      spoonHandle.parent = spoon;
+
+      // Spoon bowl
+      const spoonBowl = BABYLON.MeshBuilder.CreateSphere(`spoonBowl${i}`, {
+        diameter: 0.03,
+        segments: 8
+      }, this.scene);
+      spoonBowl.material = spoonMaterial;
+      spoonBowl.scaling.z = 0.5;
+      spoonBowl.position = new BABYLON.Vector3(0.01, 0, 0);
+      spoonBowl.parent = spoon;
+
+      spoon.position = new BABYLON.Vector3(x + 0.08, 0.87, z - 0.3).add(this.roomOffset);
+      spoon.parent = this.group;
     }
 
     // Central candles
