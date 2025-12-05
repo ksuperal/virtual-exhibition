@@ -11,6 +11,7 @@ export class Room2 extends BaseRoom {
     this.waitingObjects = []; // Objects waiting to move
     this.returningObjects = []; // Objects returning to original position
     this.returningMode = false; // Whether objects are returning
+    this.droppingObjects = []; // Objects that are dropping to ground
     this.playerCamera = null;
     this.playerControls = null;
     this.originalPlayerSpeed = null;
@@ -620,6 +621,7 @@ export class Room2 extends BaseRoom {
     this.stuckObjects = [];
     this.activeObject = null;
     this.waitingObjects = [];
+    this.droppingObjects = [];
     this.nextObjectDelay = 0;
   }
 
@@ -643,6 +645,40 @@ export class Room2 extends BaseRoom {
         }
       });
       this.originalPositionsStored = true;
+    }
+
+    // Handle dropping objects (with gravity)
+    if (this.droppingObjects && this.droppingObjects.length > 0) {
+      const gravity = 9.8;
+      const groundLevel = 0.3; // Slightly above floor
+
+      this.droppingObjects.forEach(obj => {
+        if (obj.dropping) {
+          // Apply gravity
+          obj.dropVelocity += gravity * deltaTime;
+          obj.group.position.y -= obj.dropVelocity * deltaTime;
+
+          // Add some rotation as it falls
+          obj.group.rotation.x += deltaTime * 2;
+          obj.group.rotation.z += deltaTime * 1.5;
+
+          // Check if hit ground
+          if (obj.group.position.y <= groundLevel) {
+            obj.group.position.y = groundLevel;
+            obj.dropping = false;
+            obj.dropVelocity = 0;
+            console.log('Object hit ground');
+          }
+        }
+      });
+
+      // Remove non-dropping objects from list
+      this.droppingObjects = this.droppingObjects.filter(obj => obj.dropping);
+
+      // If there are still dropping objects, don't process other animations
+      if (this.droppingObjects.length > 0) {
+        return;
+      }
     }
 
     // Handle returning mode (objects returning to original positions)
@@ -808,8 +844,20 @@ export class Room2 extends BaseRoom {
   releaseBurdens() {
     console.log('Releasing all burdens...');
 
-    // Move stuck objects to returning list for return animation
-    this.returningObjects = [...this.stuckObjects];
+    // Deactivate attraction system permanently
+    this.attractionActive = false;
+
+    // Drop all stuck objects to the ground
+    this.stuckObjects.forEach(obj => {
+      // Store dropping state
+      if (!obj.dropping) {
+        obj.dropping = true;
+        obj.dropVelocity = 0;
+      }
+    });
+
+    // Move to dropping objects list
+    this.droppingObjects = [...this.stuckObjects];
     this.stuckObjects = [];
     this.activeObject = null;
     this.waitingObjects = [];
@@ -819,12 +867,9 @@ export class Room2 extends BaseRoom {
       this.playerControls.moveSpeed = this.originalPlayerSpeed;
     }
 
-    // Mark that we're in return mode
-    this.returningMode = true;
-
-    // Reset the stuck message flag so it can trigger again
+    // Reset the stuck message flag
     this.showedStuckMessage = false;
 
-    console.log('Burdens released! Player can move again. Objects returning to positions.');
+    console.log('Burdens released! Player can move again. Objects dropping to ground.');
   }
 }
