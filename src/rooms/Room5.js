@@ -4,7 +4,7 @@ import { BaseRoom } from './BaseRoom.js';
 export class Room5 extends BaseRoom {
   constructor(scene, interactionManager, audioManager, shadowGenerator) {
     super(scene, interactionManager, audioManager, shadowGenerator);
-    this.roomOffset = new BABYLON.Vector3(55, 0, 0); // Wall-by-wall with Room 4
+    this.roomOffset = new BABYLON.Vector3(53, 0, 0); // Wall-by-wall with Room 4 (39 + 14)
     this.postcards = [];
     this.communityMessages = [];
   }
@@ -28,6 +28,23 @@ export class Room5 extends BaseRoom {
     });
     walls.position = this.roomOffset;
     walls.parent = this.group;
+
+    // Apply space wallpaper to left wall only (facing Room 4)
+    const spaceWallMaterial = new BABYLON.StandardMaterial('spaceWallMat5', this.scene);
+    const spaceTexture = new BABYLON.Texture('./pictures/space.jpg', this.scene);
+    spaceWallMaterial.diffuseTexture = spaceTexture;
+    spaceWallMaterial.emissiveTexture = spaceTexture;
+    spaceWallMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    spaceWallMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+
+    // Find and apply space texture to left wall only
+    walls.getDescendants().forEach(child => {
+      if (child.name && (child.name.includes('leftWall') || child.name.includes('Left'))) {
+        if (child.material) {
+          child.material = spaceWallMaterial;
+        }
+      }
+    });
 
     // Wooden floor
     const floor = BABYLON.MeshBuilder.CreateGround('floor', {

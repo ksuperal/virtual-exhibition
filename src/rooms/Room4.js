@@ -4,7 +4,7 @@ import { BaseRoom } from './BaseRoom.js';
 export class Room4 extends BaseRoom {
   constructor(scene, interactionManager, audioManager, shadowGenerator) {
     super(scene, interactionManager, audioManager, shadowGenerator);
-    this.roomOffset = new BABYLON.Vector3(40, 0, 0); // Wall-by-wall with Room 3
+    this.roomOffset = new BABYLON.Vector3(39, 0, 0); // Wall-by-wall with Room 3 (25 + 14)
     this.stars = [];
     this.userStars = [];
     this.floatingStars = []; // Stars that orbit around the player
@@ -24,18 +24,44 @@ export class Room4 extends BaseRoom {
 
   createRoomStructure() {
     // ENCLOSED: Intimate cosmic space with lower ceiling
-    // Room 4 has left wall with doorway (shared with Room 3), no right wall (Room 5's left wall serves as shared wall)
-    const walls = this.createWalls(16, 3.5, 14, 0x000000, {
-      hasLeftDoorway: true,  // Doorway on left wall (from Room 3)
-      hasRightWall: false    // No right wall - open to Room 5
+    // Room 4 has left wall with doorway (from Room 3), right wall with doorway (to Room 5)
+    const walls = this.createWalls(14, 3, 12, 0x000000, {
+      hasLeftDoorway: true,   // Doorway on left wall (from Room 3)
+      hasRightDoorway: true   // Doorway on right wall (to Room 5) - will have space wallpaper
     });
     walls.position = this.roomOffset.clone();
 
-    // Make walls nearly invisible (space feeling)
+    // Create space wallpaper material
+    const spaceWallMaterial = new BABYLON.StandardMaterial('spaceWallMat', this.scene);
+    const spaceTexture = new BABYLON.Texture('./pictures/space.jpg', this.scene);
+    spaceWallMaterial.diffuseTexture = spaceTexture;
+    spaceWallMaterial.emissiveTexture = spaceTexture; // Make it glow
+    spaceWallMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3); // Dim glow
+    spaceWallMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // No specular highlights
+
+    // Create dark material for left wall (matches Room 3)
+    const darkWallMaterial = new BABYLON.StandardMaterial('darkWallMat', this.scene);
+    darkWallMaterial.diffuse = new BABYLON.Color3(0.1, 0.1, 0.1); // Dark gray like Room 3
+    darkWallMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
+
+    // Create warm material for right wall (matches Room 5)
+    const warmWallMaterial = new BABYLON.StandardMaterial('warmWallMat', this.scene);
+    warmWallMaterial.diffuse = BABYLON.Color3.FromHexString('#faf0e6'); // Linen/beige like Room 5
+    warmWallMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
+
+    // Apply materials: space wallpaper to all walls EXCEPT left and right walls
     walls.getDescendants().forEach(child => {
       if (child.material) {
-        child.material.diffuse = new BABYLON.Color3(0, 0, 0);
-        child.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
+        if (child.name && (child.name.includes('leftWall') || child.name.includes('Left'))) {
+          // Apply dark material to left wall
+          child.material = darkWallMaterial;
+        } else if (child.name && (child.name.includes('rightWall') || child.name.includes('Right'))) {
+          // Apply warm material to right wall
+          child.material = warmWallMaterial;
+        } else {
+          // Apply space wallpaper to other walls (back, front, ceiling)
+          child.material = spaceWallMaterial;
+        }
       }
     });
 
@@ -51,7 +77,7 @@ export class Room4 extends BaseRoom {
     gridMaterial.diffuse = new BABYLON.Color3(0.133, 0.133, 0.267); // 0x222244
     gridMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
 
-    const gridPlane = BABYLON.MeshBuilder.CreateGround('grid', { width: 14, height: 14, subdivisions: 28 }, this.scene);
+    const gridPlane = BABYLON.MeshBuilder.CreateGround('grid', { width: 14, height: 12, subdivisions: 26 }, this.scene);
     gridPlane.position = this.roomOffset.add(new BABYLON.Vector3(0, 0.01, 0));
     gridPlane.material = gridMaterial;
     gridPlane.parent = this.group;
@@ -518,14 +544,14 @@ export class Room4 extends BaseRoom {
     ambient.diffuse = new BABYLON.Color3(0.067, 0.067, 0.2); // 0x111133
     ambient.parent = this.group;
 
-    // Dim blue/purple atmospheric lights - lowered for lower ceiling
-    const light1 = new BABYLON.PointLight('light1', new BABYLON.Vector3(-6, 2.8, -4).add(this.roomOffset), this.scene);
+    // Dim blue/purple atmospheric lights - adjusted for room dimensions (14x3x12)
+    const light1 = new BABYLON.PointLight('light1', new BABYLON.Vector3(-5, 2.5, -4).add(this.roomOffset), this.scene);
     light1.range = 12;
     light1.intensity = 0.5;
     light1.diffuse = new BABYLON.Color3(0.267, 0.267, 1); // 0x4444ff
     light1.parent = this.group;
 
-    const light2 = new BABYLON.PointLight('light2', new BABYLON.Vector3(6, 2.8, 4).add(this.roomOffset), this.scene);
+    const light2 = new BABYLON.PointLight('light2', new BABYLON.Vector3(5, 2.5, 4).add(this.roomOffset), this.scene);
     light2.range = 12;
     light2.intensity = 0.5;
     light2.diffuse = new BABYLON.Color3(0.533, 0.267, 1); // 0x8844ff

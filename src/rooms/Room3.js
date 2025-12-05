@@ -21,13 +21,30 @@ export class Room3 extends BaseRoom {
 
   createRoomStructure() {
     // ENCLOSED: Intimate dark room with lower ceiling
-    // Room 3 has left wall with doorway (shared with Room 2), no right wall (Room 4's left wall serves as shared wall)
+    // Room 3 has left wall with doorway (shared with Room 2), right wall with doorway (to Room 4)
     const walls = this.createWalls(14, 3, 12, 0x1a1a1a, {
       hasLeftDoorway: true,  // Doorway on left wall (from Room 2)
-      hasRightWall: false    // No right wall - open to Room 4
+      hasRightDoorway: true  // Doorway on right wall (to Room 4)
     });
     walls.position = this.roomOffset.clone();
     walls.parent = this.group;
+
+    // Apply space wallpaper to right wall only (facing Room 4)
+    const spaceWallMaterial = new BABYLON.StandardMaterial('spaceWallMat3', this.scene);
+    const spaceTexture = new BABYLON.Texture('./pictures/space.jpg', this.scene);
+    spaceWallMaterial.diffuseTexture = spaceTexture;
+    spaceWallMaterial.emissiveTexture = spaceTexture;
+    spaceWallMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    spaceWallMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+
+    // Find and apply space texture to right wall only
+    walls.getDescendants().forEach(child => {
+      if (child.name && (child.name.includes('rightWall') || child.name.includes('Right'))) {
+        if (child.material) {
+          child.material = spaceWallMaterial;
+        }
+      }
+    });
 
     // Dark floor
     const floor = BABYLON.MeshBuilder.CreatePlane('darkFloor', {
