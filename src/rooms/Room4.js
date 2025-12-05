@@ -15,6 +15,7 @@ export class Room4 extends BaseRoom {
   async init() {
     // Create cosmic space environment
     this.createRoomStructure();
+    this.createGlobeOnMainWall();
     this.createCentralStar();
     this.createStarField();
     this.createGalaxy();
@@ -62,8 +63,11 @@ export class Room4 extends BaseRoom {
           // Apply space wallpaper to ceiling
           child.material = spaceWallMaterial;
           child.material.backFaceCulling = false; // Ensure visible from below
+        } else if (child.name && (child.name.includes('backWall') || child.name.includes('Back'))) {
+          // Back wall will have globe image, so use a dark material
+          child.material = darkWallMaterial;
         } else if (child.name && !(child.name.includes('floor') || child.name.includes('Floor'))) {
-          // Apply space wallpaper to other walls (back, front) but not floor
+          // Apply space wallpaper to front wall only
           child.material = spaceWallMaterial;
         }
       }
@@ -73,6 +77,40 @@ export class Room4 extends BaseRoom {
 
     // Create floor with subtle grid
     this.createSpaceGrid();
+  }
+
+  createGlobeOnMainWall() {
+    // Create a plane for the globe image on the back wall
+    // Back wall dimensions: 14 units wide x 3 units tall
+    const globePlane = BABYLON.MeshBuilder.CreatePlane('globePlane', {
+      width: 14,
+      height: 3
+    }, this.scene);
+
+    // Create material with globe texture
+    const globeMaterial = new BABYLON.StandardMaterial('globeMaterial', this.scene);
+    const globeTexture = new BABYLON.Texture('./pictures/globe.png', this.scene);
+    globeTexture.hasAlpha = true; // Support transparency if the PNG has it
+    globeMaterial.diffuseTexture = globeTexture;
+    globeMaterial.emissiveTexture = globeTexture;
+    globeMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Make it glow slightly
+    globeMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // No specular highlights
+    globeMaterial.backFaceCulling = false; // Visible from both sides
+
+    globePlane.material = globeMaterial;
+
+    // Position on the back wall (z = -6 from room center)
+    // Back wall is at z = roomOffset.z - 6
+    globePlane.position = new BABYLON.Vector3(
+      0 + this.roomOffset.x,
+      1.5 + this.roomOffset.y, // Center vertically (half of room height 3)
+      -6 + this.roomOffset.z   // Back wall position
+    );
+
+    // Rotate 180 degrees to face forward (into the room)
+    globePlane.rotation.y = Math.PI;
+
+    globePlane.parent = this.group;
   }
 
   createSpaceGrid() {
@@ -416,7 +454,7 @@ export class Room4 extends BaseRoom {
       if (uiManager) {
         uiManager.showModal(
           'A Small Point',
-          '<p style="font-size: 1.2rem; line-height: 1.8;">Your problem is real. Your pain matters.</p><p style="margin-top: 15px;">But look at the vastness around it.</p><p style="margin-top: 15px; color: #666;">You are part of something infinitely larger. Your life extends far beyond this single moment.</p>'
+          '<p style="font-size: 1.2rem; line-height: 1.8;">Your problem is real. Your pain matters.</p><p style="margin-top: 15px;">But look at the vastness around it.</p><p style="margin-top: 15px; color: #666;">You are part of something infinitely larger. Your life extends far beyond this single moment in this tiny dot what we call our home.</p>'
         );
       }
 
@@ -624,33 +662,29 @@ export class Room4 extends BaseRoom {
       this.galaxy.rotation.y += deltaTime * 0.1;
     }
 
-    // Animate floating stars around the player
-    if (this.floatingStars.length > 0) {
-      // Get camera position from the scene
-      const camera = this.scene.activeCamera;
-      if (camera) {
-        this.floatingStars.forEach((starData, index) => {
-          // Calculate orbit angle (baseAngle + time-based rotation)
-          const currentAngle = starData.baseAngle + this.animationTime * starData.orbitSpeed;
+    // Animate floating stars around the central star
+    if (this.floatingStars.length > 0 && this.centralStar) {
+      this.floatingStars.forEach((starData, index) => {
+        // Calculate orbit angle (baseAngle + time-based rotation)
+        const currentAngle = starData.baseAngle + this.animationTime * starData.orbitSpeed;
 
-          // Calculate orbit position relative to camera
-          const orbitRadius = 2;
-          const x = camera.position.x + Math.cos(currentAngle) * orbitRadius;
-          const z = camera.position.z + Math.sin(currentAngle) * orbitRadius;
+        // Calculate orbit position relative to central star
+        const orbitRadius = 1.5;
+        const x = this.centralStar.position.x + Math.cos(currentAngle) * orbitRadius;
+        const z = this.centralStar.position.z + Math.sin(currentAngle) * orbitRadius;
 
-          // Add vertical bobbing
-          const bobSpeed = 2;
-          const bobAmount = 0.15;
-          const y = camera.position.y + starData.heightOffset + Math.sin(this.animationTime * bobSpeed + starData.pulse) * bobAmount;
+        // Add vertical bobbing around the central star's height
+        const bobSpeed = 2;
+        const bobAmount = 0.15;
+        const y = this.centralStar.position.y + starData.heightOffset + Math.sin(this.animationTime * bobSpeed + starData.pulse) * bobAmount;
 
-          // Update star position
-          starData.mesh.position = new BABYLON.Vector3(x, y, z);
+        // Update star position
+        starData.mesh.position = new BABYLON.Vector3(x, y, z);
 
-          // Add pulsing scale effect
-          const pulseScale = 1 + Math.sin(this.animationTime * 3 + starData.pulse) * 0.2;
-          starData.mesh.scaling = new BABYLON.Vector3(pulseScale, pulseScale, pulseScale);
-        });
-      }
+        // Add pulsing scale effect
+        const pulseScale = 1 + Math.sin(this.animationTime * 3 + starData.pulse) * 0.2;
+        starData.mesh.scaling = new BABYLON.Vector3(pulseScale, pulseScale, pulseScale);
+      });
     }
   }
 }
