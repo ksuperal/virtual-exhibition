@@ -13,7 +13,7 @@ export class Room3 extends BaseRoom {
   async init() {
     // Dark room with spotlights on wine glasses
     this.createRoomStructure();
-    this.createWineGlasses();
+    await this.createWineGlasses(); // Await wine glass model loading
     this.createPersonalObjects();
     this.createMemoryWall();
     this.createLighting();
@@ -94,63 +94,105 @@ export class Room3 extends BaseRoom {
     alcove2.parent = this.group;
   }
 
-  createWineGlasses() {
-    // Central pedestal area with wine glasses - closer together
+  async createWineGlasses() {
+    // 5 tables spread around the room, each with a different wine glass
     this.wineGlasses = [];
 
-    const glassPositions = [
-      { pos: new BABYLON.Vector3(-2, 0, 0), color: 0xff6b6b },
-      { pos: new BABYLON.Vector3(0, 0, 0), color: 0x4ecdc4 },
-      { pos: new BABYLON.Vector3(2, 0, 0), color: 0xffe66d },
-      { pos: new BABYLON.Vector3(-1, 0, -1.5), color: 0x95e1d3 },
-      { pos: new BABYLON.Vector3(1, 0, -1.5), color: 0xf38181 }
+    // SUPER OPTIMIZED: Create ONE shared material for ALL wine glasses with emissive glow
+    this.sharedGlassMaterial = new BABYLON.StandardMaterial('sharedGlassMat', this.scene);
+    this.sharedGlassMaterial.diffuseColor = BABYLON.Color3.White();
+    this.sharedGlassMaterial.alpha = 0.4;
+    this.sharedGlassMaterial.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+    // Add emissive so glasses glow without needing lights
+    this.sharedGlassMaterial.emissiveColor = BABYLON.Color3.White().scale(0.2);
+
+    // OPTIMIZED: Pre-create all glow materials to reuse them
+    this.glowMaterials = {};
+
+    // 5 tables positioned around the room with different colored wine glasses
+    const tablePositions = [
+      { pos: new BABYLON.Vector3(-4, 0, -3), color: 0xff6b6b },   // Red - front left
+      { pos: new BABYLON.Vector3(4, 0, -3), color: 0x4ecdc4 },    // Cyan - front right
+      { pos: new BABYLON.Vector3(-4, 0, 3), color: 0xffe66d },    // Yellow - back left
+      { pos: new BABYLON.Vector3(4, 0, 3), color: 0x95e1d3 },     // Mint - back right
+      { pos: new BABYLON.Vector3(0, 0, 0), color: 0xf38181 }      // Pink - center
     ];
 
-    glassPositions.forEach((data, index) => {
-      const glassSetup = this.createWineGlassWithPedestal(
+    // Create glow materials once - these provide the color/lighting
+    tablePositions.forEach(data => {
+      const glowMaterial = new BABYLON.StandardMaterial(`glowMat_${data.color}`, this.scene);
+      const liquidColorHex = '#' + data.color.toString(16).padStart(6, '0');
+      glowMaterial.emissiveColor = BABYLON.Color3.FromHexString(liquidColorHex);
+      glowMaterial.alpha = 0.7;
+      this.glowMaterials[data.color] = glowMaterial;
+    });
+
+    // Load all wine glasses on tables asynchronously
+    for (let i = 0; i < tablePositions.length; i++) {
+      const data = tablePositions[i];
+      const glassSetup = await this.createWineGlassOnTable(
         data.pos.clone().addInPlace(this.roomOffset),
         data.color,
-        index
+        i
       );
       this.wineGlasses.push(glassSetup);
-    });
+    }
   }
 
-  createWineGlassWithPedestal(position, color, index) {
-    const group = new BABYLON.TransformNode('glassGroup', this.scene);
+  async createWineGlassOnTable(position, color, index) {
+    const group = new BABYLON.TransformNode('glassTableGroup', this.scene);
     group.parent = this.group;
 
-    // Pedestal
-    const pedestal = this.createCylinder(
-      0.3, 0.25, 0.8,
-      0x2c2c2c,
-      new BABYLON.Vector3(0, 0.4, 0)
-    );
-    pedestal.parent = group;
+    // Create table
+    const tableHeight = 0.8;
+    const tableWidth = 1.2;
+    const tableDepth = 1.2;
 
-    // Wine glass
-    const glass = this.createWineGlass(color);
-    glass.position.y = 0.8;
+    // Table top
+    const tableTop = this.createBox(
+      tableWidth, 0.05, tableDepth,
+      0x8b4513,
+      new BABYLON.Vector3(0, tableHeight, 0)
+    );
+    tableTop.parent = group;
+
+    // Table legs (4 corners)
+    const legRadius = 0.04;
+    const legHeight = tableHeight;
+    const legOffset = tableWidth / 2 - 0.1;
+
+    const leg1 = this.createCylinder(legRadius, legRadius, legHeight, 0x654321,
+      new BABYLON.Vector3(-legOffset, legHeight / 2, -legOffset));
+    leg1.parent = group;
+
+    const leg2 = this.createCylinder(legRadius, legRadius, legHeight, 0x654321,
+      new BABYLON.Vector3(legOffset, legHeight / 2, -legOffset));
+    leg2.parent = group;
+
+    const leg3 = this.createCylinder(legRadius, legRadius, legHeight, 0x654321,
+      new BABYLON.Vector3(-legOffset, legHeight / 2, legOffset));
+    leg3.parent = group;
+
+    const leg4 = this.createCylinder(legRadius, legRadius, legHeight, 0x654321,
+      new BABYLON.Vector3(legOffset, legHeight / 2, legOffset));
+    leg4.parent = group;
+
+    // Wine glass on table (await the async model loading)
+    // Pass index to load different wine glass model (1-5)
+    const glassData = await this.createWineGlass(color, index + 1);
+    const glass = glassData.glass;
+    const positionOffset = glassData.positionOffset;
+
+    // Apply table height + individual offset for each glass
+    glass.position.set(
+      positionOffset.x,
+      tableHeight + positionOffset.y,
+      positionOffset.z
+    );
     glass.parent = group;
 
-    // Spotlight on this glass
-    const spotlight = new BABYLON.SpotLight('spotlight',
-      new BABYLON.Vector3(0, 4, 0),
-      new BABYLON.Vector3(0, -1, 0),
-      Math.PI / 4,
-      2,
-      this.scene
-    );
-    spotlight.intensity = 3;
-    spotlight.diffuse = BABYLON.Color3.White();
-    spotlight.parent = group;
-
-    // Configure shadow generation - add mesh children, not the TransformNode
-    if (this.shadowGenerator) {
-      glass.getChildMeshes().forEach(mesh => {
-        this.shadowGenerator.addShadowCaster(mesh);
-      });
-    }
+    // SUPER OPTIMIZED: No individual lights at all - use emissive materials only
+    let spotlight = null;
 
     group.position = position.clone();
     group.parent = this.group;
@@ -163,9 +205,136 @@ export class Room3 extends BaseRoom {
     return { group, glass, spotlight, color, index };
   }
 
-  createWineGlass(liquidColor) {
-    // Using simple geometry - 3D models have too complex materials that cause shader errors
-    return this.createSimpleWineGlass(liquidColor);
+  async createWineGlassWithPedestal(position, color, index) {
+    // Legacy function - kept for compatibility but no longer used
+    const group = new BABYLON.TransformNode('glassGroup', this.scene);
+    group.parent = this.group;
+
+    // Pedestal
+    const pedestal = this.createCylinder(
+      0.3, 0.25, 0.8,
+      0x2c2c2c,
+      new BABYLON.Vector3(0, 0.4, 0)
+    );
+    pedestal.parent = group;
+
+    // Wine glass (await the async model loading)
+    const glassData = await this.createWineGlass(color, index + 1);
+    const glass = glassData.glass;
+    glass.position.y = 0.8;
+    glass.parent = group;
+
+    // SUPER OPTIMIZED: No individual lights at all - use emissive materials only
+    // This avoids ALL uniform buffer issues
+    let spotlight = null;
+
+    // OPTIMIZED: Don't add to shadow generator to reduce complexity
+
+    group.position = position.clone();
+    group.parent = this.group;
+
+    // Make interactive
+    this.addInteractiveObject(glass, () => {
+      this.onGlassSelected(index);
+    }, 'Touch to see different interpretations');
+
+    return { group, glass, spotlight, color, index };
+  }
+
+  async createWineGlass(liquidColor, modelIndex = 1) {
+    // Re-enabled with EXTREME optimization: NO lights, shared materials only
+    // Load different wine glass model based on index (1-5)
+
+    // INDIVIDUAL CONFIGURATION for each wine glass model
+    const glassConfigs = {
+      1: {
+        scale: new BABYLON.Vector3(0.05, 0.05, 0.05),
+        rotation: new BABYLON.Vector3(0, 0, -Math.PI / 2), // Your custom rotation
+        glowSize: 0.08,
+        glowPosition: new BABYLON.Vector3(0, 0.15, 0),
+        positionOffset: new BABYLON.Vector3(0, 0.20, 0) // Adjust Y to sit on table
+      },
+      2: {
+        scale: new BABYLON.Vector3(0.05, 0.05, 0.05),
+        rotation: new BABYLON.Vector3(-Math.PI / 2, 0, 0),
+        glowSize: 0.08,
+        glowPosition: new BABYLON.Vector3(0, 0.15, 0),
+        positionOffset: new BABYLON.Vector3(0, 0.05, 0)
+      },
+      3: {
+        scale: new BABYLON.Vector3(0.05, 0.05, 0.05),
+        rotation: new BABYLON.Vector3(-Math.PI / 2, 0, 0),
+        glowSize: 0.08,
+        glowPosition: new BABYLON.Vector3(0, 0.15, 0),
+        positionOffset: new BABYLON.Vector3(0, 0.05, 0)
+      },
+      4: {
+        scale: new BABYLON.Vector3(2, 2, 2), // Your large scale
+        rotation: new BABYLON.Vector3(0, 0, 0), // Your custom rotation
+        glowSize: 0.08,
+        glowPosition: new BABYLON.Vector3(0, 0.15, 0),
+        positionOffset: new BABYLON.Vector3(0, 0.05, 0) // Adjust Y down for large model
+      },
+      5: {
+        scale: new BABYLON.Vector3(0.05, 0.05, 0.05),
+        rotation: new BABYLON.Vector3(0, 0, 0),
+        glowSize: 0.08,
+        glowPosition: new BABYLON.Vector3(0, 0.15, 0),
+        positionOffset: new BABYLON.Vector3(0, 0.20, 0)
+      }
+    };
+
+    const config = glassConfigs[modelIndex] || glassConfigs[1];
+
+    try {
+      const modelFile = `wine_glass${modelIndex}.glb`;
+      const result = await BABYLON.SceneLoader.ImportMeshAsync(
+        '',
+        './models/wine_glass/',
+        modelFile,
+        this.scene
+      );
+
+      // Create a parent transform node
+      const glassGroup = new BABYLON.TransformNode('wineGlass', this.scene);
+
+      // CRITICAL: Replace ALL materials with single shared material
+      result.meshes.forEach(mesh => {
+        if (mesh !== result.meshes[0]) { // Skip root node
+          mesh.parent = glassGroup;
+          // Force replace with shared material
+          mesh.material = this.sharedGlassMaterial;
+        }
+      });
+
+      // Apply individual configuration for this model
+      glassGroup.scaling = config.scale.clone();
+      glassGroup.rotation = config.rotation.clone();
+
+      // Add colored liquid glow using shared material (emissive, no lights)
+      const liquidGlow = BABYLON.MeshBuilder.CreateSphere('liquidGlow', {
+        diameter: config.glowSize,
+        segments: 16
+      }, this.scene);
+
+      // Use pre-created shared glow material (emissive only)
+      liquidGlow.material = this.glowMaterials[liquidColor];
+      liquidGlow.position = config.glowPosition.clone();
+      liquidGlow.parent = glassGroup;
+
+      // Return glass and its position offset
+      return {
+        glass: glassGroup,
+        positionOffset: config.positionOffset || new BABYLON.Vector3(0, 0.05, 0)
+      };
+    } catch (error) {
+      console.error(`Failed to load wine glass model wine_glass${modelIndex}.glb:`, error);
+      const fallbackGlass = this.createSimpleWineGlass(liquidColor);
+      return {
+        glass: fallbackGlass,
+        positionOffset: new BABYLON.Vector3(0, 0.05, 0)
+      };
+    }
   }
 
   createSimpleWineGlass(liquidColor) {
@@ -273,6 +442,7 @@ export class Room3 extends BaseRoom {
 
     const photoMaterial = new BABYLON.StandardMaterial('photoMaterial', this.scene);
     photoMaterial.diffuseColor = BABYLON.Color3.FromHexString('#f5f5dc');
+    photoMaterial.emissiveColor = BABYLON.Color3.FromHexString('#f5f5dc').scale(0.3); // Self-lit instead of separate light
     photo.material = photoMaterial;
 
     photo.position = position.clone();
@@ -280,43 +450,21 @@ export class Room3 extends BaseRoom {
     photo.rotation.y = -Math.PI / 2;
     photo.parent = this.group;
 
-    // Soft light on object
-    const light = new BABYLON.PointLight('photoLight',
-      new BABYLON.Vector3(position.x, position.y + 1, position.z),
-      this.scene
-    );
-    light.intensity = 0.5;
-    light.diffuse = BABYLON.Color3.FromHexString('#ffffcc');
-    light.range = 3;
-    light.parent = this.group;
+    // OPTIMIZED: Removed individual light to reduce uniform buffer usage
   }
 
   createBook(position) {
     const book = this.createBox(0.3, 0.05, 0.4, 0x8b0000, position);
     book.parent = this.group;
 
-    const light = new BABYLON.PointLight('bookLight',
-      new BABYLON.Vector3(position.x, position.y + 1, position.z),
-      this.scene
-    );
-    light.intensity = 0.5;
-    light.diffuse = BABYLON.Color3.FromHexString('#ffffcc');
-    light.range = 3;
-    light.parent = this.group;
+    // OPTIMIZED: Removed individual light to reduce uniform buffer usage
   }
 
   createPin(position) {
     const pin = this.createCylinder(0.05, 0.02, 0.01, 0xffd700, position);
     pin.parent = this.group;
 
-    const light = new BABYLON.PointLight('pinLight',
-      new BABYLON.Vector3(position.x, position.y + 1, position.z),
-      this.scene
-    );
-    light.intensity = 0.5;
-    light.diffuse = BABYLON.Color3.FromHexString('#ffffcc');
-    light.range = 3;
-    light.parent = this.group;
+    // OPTIMIZED: Removed individual light to reduce uniform buffer usage
   }
 
   createLetter(position) {
@@ -327,20 +475,14 @@ export class Room3 extends BaseRoom {
 
     const letterMaterial = new BABYLON.StandardMaterial('letterMaterial', this.scene);
     letterMaterial.diffuseColor = BABYLON.Color3.FromHexString('#fffacd');
+    letterMaterial.emissiveColor = BABYLON.Color3.FromHexString('#fffacd').scale(0.3); // Self-lit
     letter.material = letterMaterial;
 
     letter.rotation.x = -Math.PI / 2;
     letter.position = position.clone();
     letter.parent = this.group;
 
-    const light = new BABYLON.PointLight('letterLight',
-      new BABYLON.Vector3(position.x, position.y + 1, position.z),
-      this.scene
-    );
-    light.intensity = 0.5;
-    light.diffuse = BABYLON.Color3.FromHexString('#ffffcc');
-    light.range = 3;
-    light.parent = this.group;
+    // OPTIMIZED: Removed individual light to reduce uniform buffer usage
   }
 
   createMemoryWall() {
@@ -573,16 +715,16 @@ export class Room3 extends BaseRoom {
   }
 
   createLighting() {
-    // Very dim ambient
+    // MINIMAL LIGHTING: Only one ambient light to avoid uniform buffer overflow
     const ambient = new BABYLON.HemisphericLight('ambientLight',
       new BABYLON.Vector3(0, 1, 0),
       this.scene
     );
-    ambient.intensity = 0.2;
-    ambient.diffuse = BABYLON.Color3.FromHexString('#222222');
+    ambient.intensity = 0.3; // Slightly brighter since no spotlights
+    ambient.diffuse = BABYLON.Color3.FromHexString('#444444');
     ambient.parent = this.group;
 
-    // Spotlights are added with wine glasses
+    // NO individual spotlights - wine glasses use emissive materials instead
   }
 
   async onEnter() {

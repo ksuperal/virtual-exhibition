@@ -31,7 +31,9 @@ export class SceneManager {
       powerPreference: 'high-performance',
       antialias: true,
       preserveDrawingBuffer: false,
-      stencil: false
+      stencil: false,
+      // Additional optimizations
+      adaptToDeviceRatio: false
     });
 
     // Set pixel ratio (capped at 2 for performance)
@@ -39,6 +41,10 @@ export class SceneManager {
 
     // Enable basic shadows
     this.engine.getCaps().maxTextureSize = 1024;
+
+    // Performance optimizations
+    BABYLON.SceneLoader.ShowLoadingScreen = false; // Disable loading screen for faster loads
+    BABYLON.SceneLoader.CleanBoneMatrixWeights = true; // Clean up models
   }
 
   setupScene() {
@@ -47,11 +53,16 @@ export class SceneManager {
     // Background color - LIGHTENED for better visibility
     this.scene.clearColor = new BABYLON.Color4(0.2, 0.2, 0.3, 1); // Lighter navy
 
-    // Fog - LIGHTENED
+    // Fog - LIGHTENED (also helps with performance by hiding distant objects)
     this.scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
     this.scene.fogColor = new BABYLON.Color3(0.2, 0.2, 0.3);
     this.scene.fogStart = 10;
     this.scene.fogEnd = 50;
+
+    // Performance optimizations
+    this.scene.autoClear = false; // Don't clear every frame (engine will handle it)
+    this.scene.autoClearDepthAndStencil = true; // But clear depth
+    this.scene.blockMaterialDirtyMechanism = false; // Allow material updates
   }
 
   setupCamera() {
@@ -131,10 +142,10 @@ export class SceneManager {
     this.rooms.set(4, new Room4(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
     this.rooms.set(5, new Room5(this.scene, this.interactionManager, this.audioManager, this.shadowGenerator));
 
-    // Initialize all rooms and keep them all visible for seamless walking
+    // Initialize all rooms but don't show them yet (optimization)
     for (const [id, room] of this.rooms) {
       await room.init();
-      room.show(); // Keep all rooms visible for seamless walking
+      room.hide(); // Hide all rooms initially
     }
 
     // Room boundaries for automatic detection (wall-by-wall placement)
@@ -145,6 +156,22 @@ export class SceneManager {
       { roomNumber: 4, minX: 32, maxX: 48 },     // Room 4: x=40, width=16, spans 32 to 48
       { roomNumber: 5, minX: 48, maxX: 62 }      // Room 5: x=55, width=14, spans 48 to 62
     ];
+  }
+
+  updateRoomVisibility(currentRoomNumber) {
+    // Show current room and adjacent rooms only (for seamless walking)
+    // Hide rooms that are 2+ rooms away for performance
+    for (const [roomNumber, room] of this.rooms) {
+      const distance = Math.abs(roomNumber - currentRoomNumber);
+
+      if (distance <= 1) {
+        // Show current room and adjacent rooms
+        room.show();
+      } else {
+        // Hide distant rooms for performance
+        room.hide();
+      }
+    }
   }
 
   async enterRoom(roomNumber, shouldSetCamera = true) {
@@ -166,6 +193,9 @@ export class SceneManager {
       if (shouldSetCamera) {
         this.setCameraForRoom(roomNumber);
       }
+
+      // Update room visibility based on current room (optimization)
+      this.updateRoomVisibility(roomNumber);
 
       // Update room title
       this.updateRoomTitle(roomNumber);
